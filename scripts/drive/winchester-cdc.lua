@@ -11,7 +11,7 @@ drivespec_version = 1.0
 
 -- Drive types recognised by this drivespec
 drivespec = {
-	winchester_cdc_94205_51 = {
+	{
 		-- Passed to Drivespec functions
 		drivetype			= "cdc-94205-51",
 		-- Shown to user
@@ -20,14 +20,12 @@ drivespec = {
 		steprate			= 0.250,
 		-- Spin-up time in milliseconds -- zero because the drive signals READY
 		spinup				= 0,
-		-- Min and max track values
-		mintrack			= 0,
-		maxtrack			= 988,
+		-- Number of tracks
+		tracks				= 989,
 		-- track stepping -- 1=singlestep, 2=doublestep
 		trackstep			= 1,
-		-- Min and max head values
-		minhead				= 0,
-		maxhead				= 4
+		-- Number of heads
+		heads				= 5
 	},
 }
 
