@@ -59,7 +59,7 @@ Given the current drive status flags, identify whether the drive is ready for us
 function isDriveReady(drivetype, status)
 	-- DENSITY ==> Seek Complete
 	-- RY/DCHG ==> Drive Ready
-	if (status and (PIN_DENSITY + PIN_READY_DCHG)) == (PIN_DENSITY + PIN_READY_DCHG) then
+	if bit.band(status, STATUS_DENSITY + STATUS_READY_DCHG) == (STATUS_DENSITY + STATUS_READY_DCHG) then
 		return true
 	else
 		return false
