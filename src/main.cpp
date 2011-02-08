@@ -15,6 +15,9 @@
 #include <iostream>
 #include <getopt.h>
 
+// DiscFerret
+#include <discferret/discferret.h>
+
 // Lua 5.1 (PUC-Rio)
 #include <lua5.1/lua.hpp>
 
@@ -85,26 +88,65 @@ class CDriveInfo {
  */
 map<string, CDriveInfo> drives;
 
+/// Verbosity flag; true if verbose mode enabled.
+int bVerbose = false;
+
+/////////////////////////////////////////////////////////////////////////////
+
 int LoadDriveScript(const string filename)
 {
 	int err;
+
+	if (bVerbose) cout << "loading lua script: " << filename;
 
 	// Set up Lua
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
 
-	// TODO: set some base constants
+	// Set some base constants
+	struct { string name; unsigned long val; } LCONSTS[] = {
+		{ "PIN_DENSITY",		DISCFERRET_DRIVE_CONTROL_DENSITY	},
+		{ "PIN_INUSE",			DISCFERRET_DRIVE_CONTROL_INUSE		},
+		{ "PIN_DS0",			DISCFERRET_DRIVE_CONTROL_DS0		},
+		{ "PIN_DS1",			DISCFERRET_DRIVE_CONTROL_DS1		},
+		{ "PIN_DS2",			DISCFERRET_DRIVE_CONTROL_DS2		},
+		{ "PIN_DS3",			DISCFERRET_DRIVE_CONTROL_DS3		},
+		{ "PIN_MOTEN",			DISCFERRET_DRIVE_CONTROL_MOTEN		},
+		{ "PIN_SIDESEL",		DISCFERRET_DRIVE_CONTROL_SIDESEL	},
+		{ "STATUS_INDEX",		DISCFERRET_STATUS_INDEX				},
+		{ "STATUS_TRACK0",		DISCFERRET_STATUS_TRACK0			},
+		{ "STATUS_WRPROT",		DISCFERRET_STATUS_WRITE_PROTECT		},
+		{ "STATUS_READY_DCHG",	DISCFERRET_STATUS_DISC_CHANGE		},
+		{ "STATUS_DENSITY",		DISCFERRET_STATUS_DENSITY			}
+	};
+	for (size_t i=0; i<(sizeof(LCONSTS)/sizeof(LCONSTS[0])); i++) {
+		lua_pushnumber(L, LCONSTS[i].val);
+		lua_setglobal(L, LCONSTS[i].name.c_str());
+	}
 
 	// Load the script into Lua
 	err = luaL_dofile(L, filename.c_str());
 	if (err) {
-		cerr << "lua error: " << lua_tostring(L, -1) << endl;
+		cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
 //		lua_pop(L, 1); // pop error message off of stack
 		lua_close(L);	// close down lua
 		return -1;
 	}
 
 	// TODO: set up the drive specs
+
+	// TODO: REMOVEME: test calling
+	lua_getfield(L, LUA_GLOBALSINDEX, "isDriveReady");
+	lua_pushstring(L, "cdc-94205-51");
+	lua_pushnumber(L, 123); //DISCFERRET_STATUS_DENSITY + DISCFERRET_STATUS_DISC_CHANGE);
+	err = lua_pcall(L, 2, 1, 0);
+	if (err) {
+		cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
+		lua_pop(L, 1);	// pop error message off of stack
+	} else {
+		cout << "isDriveReady returns: " << lua_tointeger(L, -1) << endl;
+		lua_pop(L, 1);	// pop result off of stack
+	}
 
 	// close down Lua
 	lua_close(L);
@@ -114,8 +156,6 @@ int LoadDriveScript(const string filename)
 
 int main(int argc, char **argv)
 {
-	int bVerbose = false;
-
 	while (1) {
 		// Getopt option table
 		static const struct option opts_long[] = {
@@ -160,9 +200,9 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (bVerbose) printf("verbose flag set\n");
+	if (bVerbose) cout << "Verbose mode ON\n";
 
-	// TODO: make sure drivetype / format have been specified
+	// TODO: make sure drivetype and format have been specified
 
 	// TODO: Scan through the available scripts (getdir etc.)
 	LoadDriveScript("scripts/drive/winchester-cdc.lua");
