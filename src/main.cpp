@@ -19,7 +19,7 @@
 #include <discferret/discferret.h>
 
 // Lua 5.1 (PUC-Rio)
-#include <lua5.1/lua.hpp>
+#include "lua.hpp"
 
 using namespace std;
 

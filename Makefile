@@ -115,7 +115,7 @@ BUILD_TYPE	?=	debug
 TARGET		=	test
 
 # source files that produce object files
-SRC			=	main.cpp
+SRC			=	LuaBitOp/bit.c main.cpp
 
 # source type - either "c" or "cpp" (C or C++)
 SRC_TYPE	=	cpp
@@ -129,7 +129,7 @@ LIB			=	lua5.1
 LIBPATH		=
 # include paths -- where to search for #include files (in addition to the
 # standard paths
-INCPATH		=
+INCPATH		=	/usr/include/lua5.1
 # garbage files that should be deleted on a 'make clean' or 'make tidy'
 GARBAGE		=
 
