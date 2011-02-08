@@ -93,6 +93,11 @@ int bVerbose = false;
 
 /////////////////////////////////////////////////////////////////////////////
 
+// Pull in the LuaBit library
+extern "C" { 
+	LUALIB_API int luaopen_bit(lua_State *L);
+}
+
 int LoadDriveScript(const string filename)
 {
 	int err;
@@ -100,8 +105,10 @@ int LoadDriveScript(const string filename)
 	if (bVerbose) cout << "loading lua script: " << filename;
 
 	// Set up Lua
+	// TODO: error checking!
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
+	luaopen_bit(L);
 
 	// Set some base constants
 	struct { string name; unsigned long val; } LCONSTS[] = {
@@ -128,7 +135,7 @@ int LoadDriveScript(const string filename)
 	err = luaL_dofile(L, filename.c_str());
 	if (err) {
 		cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
-//		lua_pop(L, 1); // pop error message off of stack
+		lua_pop(L, 1); // pop error message off of stack
 		lua_close(L);	// close down lua
 		return -1;
 	}
@@ -137,14 +144,14 @@ int LoadDriveScript(const string filename)
 
 	// TODO: REMOVEME: test calling
 	lua_getfield(L, LUA_GLOBALSINDEX, "isDriveReady");
-	lua_pushstring(L, "cdc-94205-51");
-	lua_pushnumber(L, 123); //DISCFERRET_STATUS_DENSITY + DISCFERRET_STATUS_DISC_CHANGE);
+	lua_pushstring(L, "cdc-94205-51");	// TODO: push drivetype here
+	lua_pushnumber(L, DISCFERRET_STATUS_DENSITY + DISCFERRET_STATUS_DISC_CHANGE);	// TODO: push status here
 	err = lua_pcall(L, 2, 1, 0);
 	if (err) {
 		cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
 		lua_pop(L, 1);	// pop error message off of stack
 	} else {
-		cout << "isDriveReady returns: " << lua_tointeger(L, -1) << endl;
+		cout << "isDriveReady returns: " << lua_toboolean(L, -1) << endl;
 		lua_pop(L, 1);	// pop result off of stack
 	}
 
