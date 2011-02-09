@@ -124,19 +124,19 @@ SRC_TYPE	=	cpp
 EXT_OBJ		=
 # libraries to link in -- these will be specified as "-l" parameters, the -l
 # is prepended automatically
-LIB			=	lua5.1
+LIB			=	lua5.1 discferret usb-1.0
 # library paths -- where to search for the above libraries
-LIBPATH		=
+LIBPATH		=	./libdiscferret/output
 # include paths -- where to search for #include files (in addition to the
 # standard paths
-INCPATH		=	/usr/include/lua5.1
+INCPATH		=	/usr/include/lua5.1 ./libdiscferret/include
 # garbage files that should be deleted on a 'make clean' or 'make tidy'
 GARBAGE		=
 
 # extra dependencies - files that we don't necessarily know how to build, but
 # that are required for building the application; e.g. object files or
 # libraries in sub or parent directories
-EXTDEP		=
+EXTDEP		=	./libdiscferret/output/libdiscferret.so
 
 # Extra libraries
 # wxWidgets: set to "yes" to enable, anything else to disable
@@ -304,6 +304,12 @@ endif
 all:	update-revision
 	@$(MAKE) versionheader
 	$(MAKE) $(TARGET)
+
+####
+# libdiscferret
+####
+./libdiscferret/output/libdiscferret.so:
+	$(MAKE) -C libdiscferret
 
 # increment the current build number
 NEWBUILD=$(shell expr $(VER_BUILDNUM) + 1)
