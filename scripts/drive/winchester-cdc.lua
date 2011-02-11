@@ -10,7 +10,7 @@
 drivespec_version = 1.0
 
 -- Drive types recognised by this drivespec
-drivespec = {
+drivespecs = {
 	{
 		-- Passed to Drivespec functions
 		drivetype			= "cdc-94205-51",
