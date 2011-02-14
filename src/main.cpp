@@ -246,15 +246,21 @@ int LoadDriveScript(const string filename)
 
 				// Now we have all our keys, try to make a CDriveInfo
 				if (drivetype.compare("$$unspecified$$") == 0)
-					throw EDriveSpecParse("Drivetype string not specified.", lua_tointeger(L, -4));
+					throw EDriveSpecParse("Drivetype string not specified.", lua_tointeger(L, -2));
 				if (friendlyname.compare("$$unspecified$$") == 0)
-					throw EDriveSpecParse("Friendlyname string not specified.", lua_tointeger(L, -4));
-				CDriveInfo d(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
+					throw EDriveSpecParse("Friendlyname string not specified.", lua_tointeger(L, -2));
+				CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
 
-				// TODO: put the CDriveInfo into the global map
+				// put the CDriveInfo into the global map
+				if (mDrives.find(drivetype) == mDrives.end()) {
+					// This drive is not present in the drive map; add it
+					mDrives[drivetype] = driveinfo;
+				} else {
+					throw EDriveSpecParse("Drive type '" + drivetype + "' has already been defined.", lua_tointeger(L, -2));
+				}
 			} else {
 				// This isn't a table... what does the user think they're playing at?
-				throw EDriveSpecParse("drivespecs table contains a non-table entity.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("drivespecs table contains a non-table entity.", lua_tointeger(L, -2));
 				lua_close(L);
 				return -1;
 			}
