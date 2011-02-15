@@ -12,6 +12,7 @@ class EDriveSpecParse : public std::exception {
 		long _spec;
 	public:
 		EDriveSpecParse(const std::string error, const long specnum) : exception(), x(error), _spec(specnum) { };
+		EDriveSpecParse(const std::string error) : exception(), x(error), _spec(-1) { };
 		virtual ~EDriveSpecParse() throw() {};
 
 		virtual const char* what() throw() { return x.c_str(); }

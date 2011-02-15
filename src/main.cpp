@@ -107,7 +107,7 @@ int LoadDriveScript(const string filename)
 	try {
 		lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
 		if (!lua_istable(L, -1)) {
-			throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.", -1);
+			throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.");
 		}
 		lua_pushnil(L);		// first key
 		while (lua_next(L, -2) != 0) {
@@ -205,9 +205,9 @@ int LoadDriveScript(const string filename)
 	} catch (EDriveSpecParse &e) {
 		// Parse error / format violation. Let the user know what (we think) they did wrong...
 		if (e.spec() == -1)
-			cerr << "DriveSpec format violation: " << e.what() << endl;
+			cerr << "[" << filename << "]: DriveSpec format violation: " << e.what() << endl;
 		else
-			cerr << "DriveSpec format violation (drivespec block #" << e.spec() << "): " << e.what() << endl;
+			cerr << "[" << filename << ", block " << e.spec() << "]: DriveSpec format violation: " << e.what() << endl;
 		return -1;
 	}
 
