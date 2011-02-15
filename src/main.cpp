@@ -15,6 +15,7 @@
 #include <iostream>
 #include <algorithm>
 #include <getopt.h>
+#include <dirent.h>
 
 // DiscFerret
 #include <discferret/discferret.h>
@@ -99,12 +100,15 @@ lua_State *SetupLua(const string filename)
 
 int LoadDriveScript(const string filename)
 {
-	if (bVerbose) cout << "loading lua script: " << filename;
+	if (bVerbose) cout << "loading lua script: " << filename << endl;
 	lua_State *L = SetupLua(filename);	// TODO: CAN_THROW --> catch exception
 
 	// Scan through all the Drive Specs in this file -- TODO: error check
 	try {
 		lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
+		if (!lua_istable(L, -1)) {
+			throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.", -1);
+		}
 		lua_pushnil(L);		// first key
 		while (lua_next(L, -2) != 0) {
 			// uses 'key' at index -2, and 'value' at index -1
@@ -200,7 +204,10 @@ int LoadDriveScript(const string filename)
 		lua_pop(L, 1);
 	} catch (EDriveSpecParse &e) {
 		// Parse error / format violation. Let the user know what (we think) they did wrong...
-		cerr << "DriveSpec format violation (#" << e.spec() << "): " << e.what() << endl;
+		if (e.spec() == -1)
+			cerr << "DriveSpec format violation: " << e.what() << endl;
+		else
+			cerr << "DriveSpec format violation (drivespec block #" << e.spec() << "): " << e.what() << endl;
 		return -1;
 	}
 
@@ -234,6 +241,33 @@ bool lwrap_isDriveReady(lua_State *L, const string drivetype, const unsigned lon
 	}
 }
 
+/**
+ * @brief	Lua wrapper function for IsDriveReady() DriveSpec function
+ */
+bool lwrap_getDriveOutputs(lua_State *L, const string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector)
+{
+	bool result;
+	int err;
+
+	lua_getfield(L, LUA_GLOBALSINDEX, "getDriveOutputs");
+	lua_pushstring(L, drivetype.c_str());	// drive type string
+	lua_pushnumber(L, track);				// physical track
+	lua_pushnumber(L, head);				// physical head
+	lua_pushnumber(L, sector);				// physical sector
+	err = lua_pcall(L, 4, 1, 0);			// 4 parameters, 1 return value
+	if (err) {
+		// TODO: throw exception on error
+		cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
+		lua_pop(L, 1);	// pop error message off of stack
+		return false;
+	} else {
+		result = lua_toboolean(L, -1);
+		lua_pop(L, 1);	// pop result off of stack
+		return result;
+	}
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 // "I am main(), king of kings. Look upon my works, ye mighty, and despair!"
@@ -248,6 +282,7 @@ int main(int argc, char **argv)
 			{"verbose",		no_argument,		&bVerbose,		true},
 			{"drive",		required_argument,	0,				'd'},
 			{"format",		required_argument,	0,				'f'},
+			{"serial",		required_argument,	0,				's'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
 		static const char *opts_short = "d:f:";
@@ -267,6 +302,9 @@ int main(int argc, char **argv)
 
 			case 'f':
 				// set format TODO
+
+			case 's':
+				// discferret unit serial number TODO
 				printf("option %c", c);
 				if (optarg) printf(" with arg %s\n", optarg);
 					else printf("\n");
@@ -290,7 +328,23 @@ int main(int argc, char **argv)
 	// TODO: make sure drivetype and format have been specified
 
 	// TODO: Scan through the available scripts (getdir etc.)
-	LoadDriveScript("scripts/drive/winchester-cdc.lua");
+//	LoadDriveScript("scripts/drive/winchester-cdc.lua");
+	DIR *dp;
+	struct dirent *dt;
+	dp = opendir(SCRIPTDIR "/drive");
+	while ((dt = readdir(dp)) != NULL) {
+		string filename = SCRIPTDIR "/drive";
+		// skip hidden files
+		if (dt->d_name[0] == '.') continue;
+		filename += "/";
+		filename += dt->d_name;
+		// skip backup files
+		if (filename[filename.length()-1] == '~') continue;
+
+		// load the drivescript
+		LoadDriveScript(filename);
+	}
+	closedir(dp);
 
 	return 0;
 }

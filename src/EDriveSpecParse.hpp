@@ -9,13 +9,13 @@
 class EDriveSpecParse : public std::exception {
 	private:
 		std::string x;
-		unsigned long _spec;
+		long _spec;
 	public:
-		EDriveSpecParse(const std::string error, const unsigned long specnum) : exception(), x(error), _spec(specnum) { };
+		EDriveSpecParse(const std::string error, const long specnum) : exception(), x(error), _spec(specnum) { };
 		virtual ~EDriveSpecParse() throw() {};
 
 		virtual const char* what() throw() { return x.c_str(); }
-		virtual const unsigned long spec() { return _spec; }
+		virtual const long spec() { return _spec; }
 };
 
 #endif // _hpp_EDriveSpecParse
