@@ -51,10 +51,12 @@ extern "C" {
 	LUALIB_API int luaopen_bit(lua_State *L);
 }
 
-lua_State *SetupLua(void)
+lua_State *SetupLua(const string filename)
 {
+	int err;
+
 	// Set up Lua
-	// TODO: error checking!
+	// TODO: error checking! throw exception if something goes wrong!
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
 	luaopen_bit(L);
@@ -80,33 +82,34 @@ lua_State *SetupLua(void)
 		lua_setglobal(L, LCONSTS[i].name.c_str());
 	}
 
+	if (filename.length() > 0) {
+		// Load the script into Lua
+		err = luaL_dofile(L, filename.c_str());
+		if (err) {
+			// TODO: throw exception here
+			cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
+			lua_pop(L, 1); // pop error message off of stack
+			lua_close(L);	// close down lua
+			return NULL;
+		}
+	}
+
 	return L;
 }
 
 int LoadDriveScript(const string filename)
 {
-	int err;
-
 	if (bVerbose) cout << "loading lua script: " << filename;
-
-	// Load the script into Lua
-	lua_State *L = SetupLua();
-	err = luaL_dofile(L, filename.c_str());
-	if (err) {
-		cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
-		lua_pop(L, 1); // pop error message off of stack
-		lua_close(L);	// close down lua
-		return -1;
-	}
+	lua_State *L = SetupLua(filename);	// TODO: CAN_THROW --> catch exception
 
 	// Scan through all the Drive Specs in this file -- TODO: error check
-	lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
-	lua_pushnil(L);		// first key
-	while (lua_next(L, -2) != 0) {
-		// uses 'key' at index -2, and 'value' at index -1
+	try {
+		lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
+		lua_pushnil(L);		// first key
+		while (lua_next(L, -2) != 0) {
+			// uses 'key' at index -2, and 'value' at index -1
 
-		// Check that 'value' is a table
-		try {
+			// Check that 'value' is a table
 			if (lua_istable(L, -1)) {
 				// Temporary storage for drivespec fields (CDriveInfo's mandatory parameters are immutable)
 				string drivetype = "$$unspecified$$";
@@ -189,30 +192,16 @@ int LoadDriveScript(const string filename)
 				lua_close(L);
 				return -1;
 			}
-		} catch (EDriveSpecParse &e) {
-			// Parse error / format violation. Let the user know what (we think) they did wrong...
-			cerr << "DriveSpec format violation (#" << e.spec() << "): " << e.what() << endl;
-			return -1;
+				// remove 'value' from stack, keep 'key' for next iteration
+			lua_pop(L, 1);
 		}
 
-		// remove 'value' from stack, keep 'key' for next iteration
+		// pop the table off of the stack
 		lua_pop(L, 1);
-	}
-
-	// pop the table off of the stack
-	lua_pop(L, 1);
-
-	// TODO: REMOVEME: test calling ==> should be in a separate function we can use to get drive info
-	lua_getfield(L, LUA_GLOBALSINDEX, "isDriveReady");
-	lua_pushstring(L, "cdc-94205-51");	// TODO: push drivetype here
-	lua_pushnumber(L, DISCFERRET_STATUS_DENSITY + DISCFERRET_STATUS_DISC_CHANGE);	// TODO: push status here
-	err = lua_pcall(L, 2, 1, 0);
-	if (err) {
-		cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
-		lua_pop(L, 1);	// pop error message off of stack
-	} else {
-		cout << "isDriveReady returns: " << lua_toboolean(L, -1) << endl;
-		lua_pop(L, 1);	// pop result off of stack
+	} catch (EDriveSpecParse &e) {
+		// Parse error / format violation. Let the user know what (we think) they did wrong...
+		cerr << "DriveSpec format violation (#" << e.spec() << "): " << e.what() << endl;
+		return -1;
 	}
 
 	// close down Lua
@@ -220,6 +209,35 @@ int LoadDriveScript(const string filename)
 
 	return 0;
 }
+
+/**
+ * @brief	Lua wrapper function for IsDriveReady() DriveSpec function
+ */
+bool lwrap_isDriveReady(lua_State *L, const string drivetype, const unsigned long status)
+{
+	bool result;
+	int err;
+
+	lua_getfield(L, LUA_GLOBALSINDEX, "isDriveReady");
+	lua_pushstring(L, drivetype.c_str());	// drive type string
+	lua_pushnumber(L, status);				// status value from discferret_get_status()
+	err = lua_pcall(L, 2, 1, 0);	// 2 parameters, 1 return value
+	if (err) {
+		// TODO: throw exception on error
+		cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
+		lua_pop(L, 1);	// pop error message off of stack
+		return false;
+	} else {
+		result = lua_toboolean(L, -1);
+		lua_pop(L, 1);	// pop result off of stack
+		return result;
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+// "I am main(), king of kings. Look upon my works, ye mighty, and despair!"
+//////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char **argv)
 {
