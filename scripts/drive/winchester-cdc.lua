@@ -33,10 +33,10 @@ drivespecs = {
 Given the drive type, track, head and sector, return a list of output pins which need to be set.
 Called once per sector on hard-sectored media, once per track on soft-sectored media
 --]]
-function getDriveOutputs(drivespec, track, head, sector)
+function getDriveOutputs(drivetype, track, head, sector)
 	pins = 0
 
-	if drivespec['drivetype'] == "cdc-94205-51" then
+	if drivetype == "cdc-94205-51" then
 		-- CDC 94205-51, Seagate ST253
 		pins = pins or PIN_DS0
 	else
