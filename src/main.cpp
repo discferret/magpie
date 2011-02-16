@@ -29,9 +29,9 @@
 
 using namespace std;
 
-// Default script directory
-#ifndef SCRIPTDIR
-#define SCRIPTDIR "./scripts"
+// Default script directories
+#ifndef DRIVESCRIPTDIR
+#define DRIVESCRIPTDIR "./scripts/drive"
 #endif
 
 /**
@@ -100,7 +100,7 @@ lua_State *SetupLua(const string filename)
 
 int LoadDriveScript(const string filename)
 {
-	if (bVerbose) cout << "loading lua script: " << filename << endl;
+	if (bVerbose) cout << "loading drivescript: " << filename << endl;
 	lua_State *L = SetupLua(filename);	// TODO: CAN_THROW --> catch exception
 
 	// Scan through all the Drive Specs in this file -- TODO: error check
@@ -267,6 +267,35 @@ bool lwrap_getDriveOutputs(lua_State *L, const string drivetype, const unsigned 
 	}
 }
 
+void TraverseScriptDir(const string path)
+{
+	DIR *dp;
+	struct dirent *dt;
+	dp = opendir(path.c_str());
+	while ((dt = readdir(dp)) != NULL) {
+		string filename = path + "/";
+		// skip hidden files
+		if (dt->d_name[0] == '.') continue;
+		// add filename to get fully qualified path
+		filename += dt->d_name;
+
+		// What is this directory entry?
+		if (dt->d_type == DT_DIR) {
+			// it's a subdirectory...
+			cout << "traversing directory: " << filename <<endl;
+			TraverseScriptDir(filename);
+		} else if (dt->d_type == DT_REG) {
+			// skip files which aren't lua scripts
+			if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
+
+			// it's a regular file... load it as a script.
+			LoadDriveScript(filename);
+		}
+	}
+	closedir(dp);
+
+}
+
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -328,23 +357,7 @@ int main(int argc, char **argv)
 	// TODO: make sure drivetype and format have been specified
 
 	// TODO: Scan through the available scripts (getdir etc.)
-//	LoadDriveScript("scripts/drive/winchester-cdc.lua");
-	DIR *dp;
-	struct dirent *dt;
-	dp = opendir(SCRIPTDIR "/drive");
-	while ((dt = readdir(dp)) != NULL) {
-		string filename = SCRIPTDIR "/drive";
-		// skip hidden files
-		if (dt->d_name[0] == '.') continue;
-		filename += "/";
-		filename += dt->d_name;
-		// skip backup files
-		if (filename[filename.length()-1] == '~') continue;
-
-		// load the drivescript
-		LoadDriveScript(filename);
-	}
-	closedir(dp);
+	TraverseScriptDir(DRIVESCRIPTDIR);
 
 	return 0;
 }
