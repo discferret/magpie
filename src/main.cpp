@@ -52,7 +52,7 @@ extern "C" {
 	LUALIB_API int luaopen_bit(lua_State *L);
 }
 
-lua_State *SetupLua(const string filename)
+lua_State *LoadLuaScript(const string filename)
 {
 	int err;
 
@@ -98,10 +98,10 @@ lua_State *SetupLua(const string filename)
 	return L;
 }
 
-int LoadDriveScript(const string filename)
+int InitDriveScript(const string filename)
 {
 	if (bVerbose) cout << "loading drivescript: " << filename << endl;
-	lua_State *L = SetupLua(filename);	// TODO: CAN_THROW --> catch exception
+	lua_State *L = LoadLuaScript(filename);	// TODO: CAN_THROW --> catch exception
 
 	// Scan through all the Drive Specs in this file -- TODO: error check
 	try {
@@ -242,7 +242,7 @@ bool lwrap_isDriveReady(lua_State *L, const string drivetype, const unsigned lon
 }
 
 /**
- * @brief	Lua wrapper function for IsDriveReady() DriveSpec function
+ * @brief	Lua wrapper function for getDriveOutputs() DriveSpec function
  */
 bool lwrap_getDriveOutputs(lua_State *L, const string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector)
 {
@@ -289,7 +289,7 @@ void TraverseScriptDir(const string path)
 			if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
 
 			// it's a regular file... load it as a script.
-			LoadDriveScript(filename);
+			InitDriveScript(filename);
 		}
 	}
 	closedir(dp);
