@@ -10,7 +10,7 @@
 drivespec_version = 1.0
 
 -- Drive types recognised by this drivespec
-drivespec = {
+drivespecs = {
 	pc35a = {
 		-- Passed to Drivespec functions
 		drivetype			= "pc35a",
@@ -20,27 +20,30 @@ drivespec = {
 		steprate			= 3.0,
 		-- Spin-up time in milliseconds
 		spinup				= 1000,
-		-- Min and max track values
-		mintrack			= 0,
-		maxtrack			= 83,
-		-- track stepping -- 1=singlestep, 2=doublestep
+		-- Number of physical tracks
+		tracks				= 84,
+		-- Track stepping -- 1=singlestep, 2=doublestep
 		trackstep			= 1,
-		-- Min and max head values
-		minhead				= 0,
-		maxhead				= 1
+		-- Number of physical heads
+		heads				= 2,
 	},
 
 	pc35b = {
+		-- Passed to Drivespec functions
 		drivetype			= "pc35b",
+		-- Shown to user
 		friendlyname		= "PC 3.5\", twisted cable (CBL-01A), drive B",
+		-- Default step rate in milliseconds
 		steprate			= 3.0,
+		-- Spin-up time in milliseconds
 		spinup				= 1000,
-		mintrack			= 0,
-		maxtrack			= 83,
+		-- Number of physical tracks
+		tracks				= 84,
+		-- Track stepping -- 1=singlestep, 2=doublestep
 		trackstep			= 1,
-		minhead				= 0,
-		maxhead				= 1
-	}
+		-- Number of physical heads
+		heads				= 2,
+	},
 }
 
 --[[
