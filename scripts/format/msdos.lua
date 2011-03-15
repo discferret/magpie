@@ -8,7 +8,7 @@
 
 formatspec_version = 1.0
 
-formatspec = {
+formatspecs = {
 	gen40 = {
 		-- format name
 		friendlyname	= "40 track, soft-sectored, generic",
