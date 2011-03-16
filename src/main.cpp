@@ -53,7 +53,6 @@ class CScriptInterface {
 
 	public:
 		CScriptInterface(const std::string filename) {
-//			SetupLua(filename);
 			int err;
 
 			// Set up Lua
@@ -88,8 +87,9 @@ class CScriptInterface {
 				err = luaL_dofile(L, filename.c_str());
 				if (err) {
 					lua_pop(L, 1); // pop error message off of stack
-					lua_close(L);	// close down lua
 					cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
+					lua_close(L);	// close down lua
+					throw -1;		// TODO: throw something better
 				}
 			}
 		}
@@ -102,10 +102,91 @@ class CScriptInterface {
 
 class CDriveScript : public CScriptInterface {
 	private:
-		/// List of drive types understood by this script
-		map<string, CDriveInfo> mDrives;
+		vector<string> svDrivetypes;
 
 	public:
+		CDriveInfo GetDriveInfo(const std::string drivetype)
+		{
+				// get the drivespecs table
+				lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
+
+				// make sure it's a table
+				if (!lua_istable(L, -1)) {
+					// TODO: this should be an Internal Error
+					throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.");
+				}
+				// push the table key and retrieve the entry
+				lua_pushstring(L, drivetype.c_str());
+				lua_gettable(L, -2);	// get drivespecs[drivetype]
+
+				// make sure the drivespec entry is a table (drivespecs is a table-of-tables)
+				if (!lua_istable(L, -1)) {
+					throw EDriveSpecParse("DriveSpec entry '" + drivetype + "' is not a table.");
+				}
+
+				// Temporary storage for drivespec fields (CDriveInfo's mandatory parameters are immutable)
+				string friendlyname = "$$unspecified$$";
+				unsigned int heads = 1,
+							 tracks = 40,
+							 trackstep = 1,
+							 spinup = 1000,
+							 steprate = 6000;
+
+				// Now we parse the DriveSpec -- we do this using the same table iteration method we use above
+				lua_pushnil(L);		// Initial key
+				while (lua_next(L, -2) != 0) {
+					// Sort out where this needs to go in our 'temporary drivespec'
+					//
+					// Get the parameter name and convert it to lower case
+					string key = lua_tostring(L, -2);
+					transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+					// Convert the key->value pairs into local variables, with error checking
+					if (key.compare("friendlyname") == 0) {
+						// [string] Friendly name
+						friendlyname = lua_tostring(L, -1);
+						if (friendlyname.length() == 0)
+							throw EDriveSpecParse("friendlyname not valid.", lua_tointeger(L, -4));
+					} else if (key.compare("heads") == 0) {
+						// [integer] Number of heads
+						heads = lua_tointeger(L, -1);
+						if (heads < 1)
+							throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+					} else if (key.compare("spinup") == 0) {
+						// [integer] Spinup time, milliseconds
+						spinup = lua_tointeger(L, -1);
+					} else if (key.compare("steprate") == 0) {
+						// [float] Step rate, milliseconds
+						double x = lua_tonumber(L, -1);
+						steprate = x * 1000;	// convert from milliseconds to microseconds
+						if ((steprate < 250) || (steprate > (255*250)))
+							throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", lua_tointeger(L, -4));
+					} else if (key.compare("tracks") == 0) {
+						// [integer] Number of tracks
+						tracks = lua_tointeger(L, -1);
+						if (tracks < 1)
+							throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+					} else if (key.compare("trackstep") == 0) {
+						// [integer] Number of physical tracks to step for each logical track
+						trackstep = lua_tointeger(L, -1);
+						if (trackstep < 1)
+							throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+					} else {
+						throw EDriveSpecParse("Unrecognised key \"" + key + "\"", lua_tointeger(L, -4));
+					}
+
+					// pop value off of stack, leave key for next iteration
+					lua_pop(L, 1);
+				}
+
+				// Now we have all our keys, try to make a CDriveInfo
+				if (friendlyname.compare("$$unspecified$$") == 0)
+					throw EDriveSpecParse("Friendlyname string not specified.", lua_tointeger(L, -2));
+				CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
+
+				return driveinfo;
+		}
+
 		CDriveScript(const std::string filename) : CScriptInterface(filename) {
 			// Scan through all the Drive Specs in this file -- TODO: error check
 			try {
@@ -118,90 +199,28 @@ class CDriveScript : public CScriptInterface {
 					// uses 'key' at index -2, and 'value' at index -1
 
 					// Check that 'value' is a table
-					if (lua_istable(L, -1)) {
-						// Temporary storage for drivespec fields (CDriveInfo's mandatory parameters are immutable)
-						string drivetype = "$$unspecified$$";
-						string friendlyname = "$$unspecified$$";
-						unsigned int heads = 1,
-									 tracks = 40,
-									 trackstep = 1,
-									 spinup = 1000,
-									 steprate = 6000;
-
-						// Now we parse the DriveSpec -- we do this using the same table iteration method we use above
-						lua_pushnil(L);		// Initial key
-						while (lua_next(L, -2) != 0) {
-							// Sort out where this needs to go in our 'temporary drivespec'
-							//
-							// Get the parameter name and convert it to lower case
-							string key = lua_tostring(L, -2);
-							transform(key.begin(), key.end(), key.begin(), ::tolower);
-
-							// Convert the key->value pairs into local variables, with error checking
-							if (key.compare("drivetype") == 0) {
-								// [string] Drive type
-								drivetype = lua_tostring(L, -1);
-								if (drivetype.length() == 0)
-									throw EDriveSpecParse("drivetype not valid.", lua_tointeger(L, -4));
-							} else if (key.compare("friendlyname") == 0) {
-								// [string] Friendly name
-								friendlyname = lua_tostring(L, -1);
-								if (friendlyname.length() == 0)
-									throw EDriveSpecParse("friendlyname not valid.", lua_tointeger(L, -4));
-							} else if (key.compare("heads") == 0) {
-								// [integer] Number of heads
-								heads = lua_tointeger(L, -1);
-								if (heads < 1)
-									throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
-							} else if (key.compare("spinup") == 0) {
-								// [integer] Spinup time, milliseconds
-								spinup = lua_tointeger(L, -1);
-							} else if (key.compare("steprate") == 0) {
-								// [float] Step rate, milliseconds
-								double x = lua_tonumber(L, -1);
-								steprate = x * 1000;	// convert from milliseconds to microseconds
-								if ((steprate < 250) || (steprate > (255*250)))
-									throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", lua_tointeger(L, -4));
-							} else if (key.compare("tracks") == 0) {
-								// [integer] Number of tracks
-								tracks = lua_tointeger(L, -1);
-								if (tracks < 1)
-									throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
-							} else if (key.compare("trackstep") == 0) {
-								// [integer] Number of physical tracks to step for each logical track
-								trackstep = lua_tointeger(L, -1);
-								if (trackstep < 1)
-									throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
-							} else {
-								throw EDriveSpecParse("Unrecognised key \"" + key + "\"", lua_tointeger(L, -4));
-							}
-
-							// pop value off of stack, leave key for next iteration
-							lua_pop(L, 1);
-						}
-
-						// Now we have all our keys, try to make a CDriveInfo
-						if (drivetype.compare("$$unspecified$$") == 0)
-							throw EDriveSpecParse("Drivetype string not specified.", lua_tointeger(L, -2));
-						if (friendlyname.compare("$$unspecified$$") == 0)
-							throw EDriveSpecParse("Friendlyname string not specified.", lua_tointeger(L, -2));
-						CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
-
-						// put the CDriveInfo into the global map
-						if (mDrives.find(drivetype) == mDrives.end()) {
-							// This drive is not present in the drive map; add it
-							mDrives[drivetype] = driveinfo;
-						} else {
-							throw EDriveSpecParse("Drive type '" + drivetype + "' has already been defined.", lua_tointeger(L, -2));
-						}
-					} else {
+					if (!lua_istable(L, -1)) {
 						// This isn't a table... what does the user think they're playing at?
 						throw EDriveSpecParse("drivespecs table contains a non-table entity.", lua_tointeger(L, -2));
 						lua_close(L);
 						//TODO! throw something proper
 						throw -1;
 					}
-						// remove 'value' from stack, keep 'key' for next iteration
+
+					// Make sure this is a table, not an array
+					if (lua_isnumber(L, -2)) {
+						// Key isn't a string identifier.
+						throw EDriveSpecParse("drivespecs is an array, not a table.", lua_tointeger(L, -3));
+						lua_close(L);
+						//TODO! throw something proper
+						throw -1;
+					}
+
+					// Get the drivetype and store it
+					string key = lua_tostring(L, -2);
+					svDrivetypes.push_back(key);
+
+					// remove 'value' from stack, keep 'key' for next iteration
 					lua_pop(L, 1);
 				}
 
@@ -216,7 +235,6 @@ class CDriveScript : public CScriptInterface {
 				//TODO! throw something proper
 				throw -1;
 			}
-
 		}
 
 		/**
@@ -272,71 +290,76 @@ class CDriveScript : public CScriptInterface {
 				return result;
 			}
 		}
+
+		const vector<string> getDrivetypes(void) {
+			return svDrivetypes;
+		}
 };
 
 /***
- * TODO: turn this into an interface:
- *   CScriptManager::Load --> virtual =0
- *   CScriptManager::LoadDir --> code from TraverseScriptDir(), calls CSM::Load
- *
  *   CDriveScriptManager --> extend CGenericScriptManager
  *     --> implement Load() to create a CDriveScript and merge drivescript list from that with the root list
  *   CFormatScriptManager --> s.a.a. but create CFormatScript objects instead
  */
-class CScriptManager {
+
+class GenericScriptManager {
+	public:
+		virtual void load(const std::string filename) =0;
+		
+		virtual void loaddir(const std::string path)
+		{
+			DIR *dp;
+			struct dirent *dt;
+			dp = opendir(path.c_str());
+			while ((dt = readdir(dp)) != NULL) {
+				string filename = path + "/";
+				// skip hidden files
+				if (dt->d_name[0] == '.') continue;
+				// add filename to get fully qualified path
+				filename += dt->d_name;
+
+				// What is this directory entry?
+				if (dt->d_type == DT_DIR) {
+					// it's a subdirectory...
+					// TODO: recursion limit
+					cout << "traversing directory: " << filename <<endl;
+					this->loaddir(filename);
+				} else if (dt->d_type == DT_REG) {
+					// skip files which aren't lua scripts
+					if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
+
+					// it's a regular file... load it as a script.
+					this->load(filename);
+				}
+			}
+			closedir(dp);
+		}
+};
+
+class CDriveScriptManager : public GenericScriptManager {
 	private:
 		/**
-		 * Drive information storage map.
+		 * Map between drive types and script filenames.
 		 *
-		 * Stores a list of all available drive types, mapped by drive type string.
-		 * The type string is also stored in CDriveInfo for
+		 * This map is used to find out which script must be loaded to gain access
+		 * to a given drive type.
 		 */
-		map<string, CDriveInfo> mDrives;
+		map<string, string> mDrivetypes;
 
 	public:
-		int LoadDriveScript(const string filename)
+		void load(const std::string filename)
 		{
 			if (bVerbose) cout << "loading drivescript: " << filename << endl;
 			CDriveScript script(filename);	// TODO: CAN_THROW --> catch exception
 
-			// TODO: merge script's drivetype list with CDS's list
-
-			return 0;
+			// merge script's drivetype list with CDS's list
+			vector<string> drivelist = script.getDrivetypes();
+			for (vector<string>::const_iterator it = drivelist.begin(); it != drivelist.end(); it++) {
+				// TODO: make sure this dt hasn't already been defined
+				mDrivetypes[*it] = filename;
+			}
 		}
-
-
 };
-
-#if 0
-void TraverseScriptDir(const string path)
-{
-	DIR *dp;
-	struct dirent *dt;
-	dp = opendir(path.c_str());
-	while ((dt = readdir(dp)) != NULL) {
-		string filename = path + "/";
-		// skip hidden files
-		if (dt->d_name[0] == '.') continue;
-		// add filename to get fully qualified path
-		filename += dt->d_name;
-
-		// What is this directory entry?
-		if (dt->d_type == DT_DIR) {
-			// it's a subdirectory...
-			cout << "traversing directory: " << filename <<endl;
-			TraverseScriptDir(filename);
-		} else if (dt->d_type == DT_REG) {
-			// skip files which aren't lua scripts
-			if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
-
-			// it's a regular file... load it as a script.
-			LoadDriveScript(filename);
-		}
-	}
-	closedir(dp);
-
-}
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -398,15 +421,9 @@ int main(int argc, char **argv)
 	// TODO: make sure drivetype and format have been specified
 
 	// TODO: Scan through the available scripts (getdir etc.)
-	TraverseScriptDir(DRIVESCRIPTDIR);
+//	TraverseScriptDir(DRIVESCRIPTDIR);
+	CDriveScriptManager dsm;
+	dsm.loaddir(DRIVESCRIPTDIR);
 
 	return 0;
 }
-#else
-
-int main(void)
-{
-	return 0;
-}
-
-#endif
