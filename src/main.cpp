@@ -304,9 +304,9 @@ class CDriveScript : public CScriptInterface {
 
 class GenericScriptManager {
 	public:
-		virtual void load(const std::string filename) =0;
-		
-		virtual void loaddir(const std::string path)
+		virtual void scan(const std::string filename) =0;
+
+		virtual void scandir(const std::string path)
 		{
 			DIR *dp;
 			struct dirent *dt;
@@ -323,13 +323,13 @@ class GenericScriptManager {
 					// it's a subdirectory...
 					// TODO: recursion limit
 					cout << "traversing directory: " << filename <<endl;
-					this->loaddir(filename);
+					this->scandir(filename);
 				} else if (dt->d_type == DT_REG) {
 					// skip files which aren't lua scripts
 					if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
 
 					// it's a regular file... load it as a script.
-					this->load(filename);
+					this->scan(filename);
 				}
 			}
 			closedir(dp);
@@ -347,7 +347,20 @@ class CDriveScriptManager : public GenericScriptManager {
 		map<string, string> mDrivetypes;
 
 	public:
-		void load(const std::string filename)
+		CDriveScript load(const std::string drivetype)
+		{
+			// Look up the drive type
+			map<string,string>::const_iterator it = mDrivetypes.find(drivetype);
+			if (it == mDrivetypes.end()) {
+				cerr << "Drivetype not found" << endl;
+				throw -1;
+			}
+
+			// Drive type is valid, and it->second contains the script file name
+			return CDriveScript(it->second);
+		}
+
+		void scan(const std::string filename)
 		{
 			if (bVerbose) cout << "loading drivescript: " << filename << endl;
 			CDriveScript script(filename);	// TODO: CAN_THROW --> catch exception
@@ -423,7 +436,9 @@ int main(int argc, char **argv)
 	// TODO: Scan through the available scripts (getdir etc.)
 //	TraverseScriptDir(DRIVESCRIPTDIR);
 	CDriveScriptManager dsm;
-	dsm.loaddir(DRIVESCRIPTDIR);
+	dsm.scandir(DRIVESCRIPTDIR);
+	dsm.load("cdc_94205_51");
+	dsm.load("cdc_94205_52");
 
 	return 0;
 }
