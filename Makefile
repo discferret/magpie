@@ -115,7 +115,7 @@ BUILD_TYPE	?=	debug
 TARGET		=	test
 
 # source files that produce object files
-SRC			=	LuaBitOp/bit.c main.cpp
+SRC			=	LuaBitOp/bit.c main.cpp ScriptInterfaces.cpp
 
 # source type - either "c" or "cpp" (C or C++)
 SRC_TYPE	=	cpp
