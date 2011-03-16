@@ -11,9 +11,8 @@ drivespec_version = 1.0
 
 -- Drive types recognised by this drivespec
 drivespecs = {
-	{
-		-- Passed to Drivespec functions
-		drivetype			= "cdc-94205-51",
+	-- Drive type ID maps to a table
+	cdc_94205_51 = {
 		-- Shown to user
 		friendlyname		= "WINCHESTER: CDC / MPI / Imprimis 94205-51, Seagate ST253",
 		-- Default step rate in milliseconds (250us)
