@@ -1,3 +1,6 @@
+#ifndef _hpp_ScriptManagers
+#define _hpp_ScriptManagers
+
 #include <string>
 #include <map>
 
@@ -24,4 +27,5 @@ class CDriveScriptManager : public GenericScriptManager {
 		void scan(const std::string filename);
 };
 
+#endif // _hpp_ScriptManagers
 

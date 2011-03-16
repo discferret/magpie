@@ -1,3 +1,6 @@
+#ifndef _hpp_ScriptInterfaces
+#define _hpp_ScriptInterfaces
+
 // C++ STL headers
 #include <string>
 #include <vector>
@@ -42,4 +45,6 @@ class CDriveScript : public CScriptInterface {
 
 		const std::vector<std::string> getDrivetypes(void);
 };
+
+#endif // _hpp_ScriptInterfaces
 
