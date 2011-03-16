@@ -208,3 +208,57 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 	return driveinfo;
 }
 
+
+bool CDriveScript::isDriveReady(const std::string drivetype, const unsigned long status)
+{
+	bool result;
+	int err;
+
+	// TODO: check drive type is in mDrives?
+
+	lua_getfield(L, LUA_GLOBALSINDEX, "isDriveReady");
+	lua_pushstring(L, drivetype.c_str());	// drive type string
+	lua_pushnumber(L, status);				// status value from discferret_get_status()
+	err = lua_pcall(L, 2, 1, 0);	// 2 parameters, 1 return value
+	if (err) {
+		// TODO: throw exception on error --> remove cerr!
+//				cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
+		lua_pop(L, 1);	// pop error message off of stack
+		return false;
+	} else {
+		result = lua_toboolean(L, -1);
+		lua_pop(L, 1);	// pop result off of stack
+		return result;
+	}
+}
+
+bool CDriveScript::getDriveOutputs(const std::string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector)
+{
+	bool result;
+	int err;
+
+	// TODO: check drive type is in mDrives?
+
+	lua_getfield(L, LUA_GLOBALSINDEX, "getDriveOutputs");
+	lua_pushstring(L, drivetype.c_str());	// drive type string
+	lua_pushnumber(L, track);				// physical track
+	lua_pushnumber(L, head);				// physical head
+	lua_pushnumber(L, sector);				// physical sector
+	err = lua_pcall(L, 4, 1, 0);			// 4 parameters, 1 return value
+	if (err) {
+		// TODO: throw exception on error
+//				cerr << "Error calling getDriveOutputs: " << lua_tostring(L, -1) << endl;
+		lua_pop(L, 1);	// pop error message off of stack
+		return false;
+	} else {
+		result = lua_toboolean(L, -1);
+		lua_pop(L, 1);	// pop result off of stack
+		return result;
+	}
+}
+
+const std::vector<std::string> CDriveScript::getDrivetypes(void)
+{
+	return svDrivetypes;
+}
+

@@ -36,12 +36,6 @@ int bVerbose = false;
 /////////////////////////////////////////////////////////////////////////////
 
 
-/***
- *   CDriveScriptManager --> extend CGenericScriptManager
- *     --> implement Load() to create a CDriveScript and merge drivescript list from that with the root list
- *   CFormatScriptManager --> s.a.a. but create CFormatScript objects instead
- */
-
 class GenericScriptManager {
 	public:
 		virtual void scan(const std::string filename) =0;
