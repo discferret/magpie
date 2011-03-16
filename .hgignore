@@ -1,6 +1,8 @@
 syntax: glob
 obj/*.o
+obj/*/*.o
 dep/*.d
+dep/*/*.d
 *~
 .*.sw?
 src/version.h
