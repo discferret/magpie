@@ -12,8 +12,6 @@ drivespec_version = 1.0
 -- Drive types recognised by this drivespec
 drivespecs = {
 	pc35a = {
-		-- Passed to Drivespec functions
-		drivetype			= "pc35a",
 		-- Shown to user
 		friendlyname		= "PC 3.5\", twisted cable (CBL-01A), drive A",
 		-- Default step rate in milliseconds
@@ -29,8 +27,6 @@ drivespecs = {
 	},
 
 	pc35b = {
-		-- Passed to Drivespec functions
-		drivetype			= "pc35b",
 		-- Shown to user
 		friendlyname		= "PC 3.5\", twisted cable (CBL-01A), drive B",
 		-- Default step rate in milliseconds
