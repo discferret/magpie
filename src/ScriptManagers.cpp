@@ -2,6 +2,7 @@
 #include <iostream>
 #include <dirent.h>
 
+#include "Exceptions.hpp"
 #include "ScriptManagers.hpp"
 
 using namespace std;
@@ -42,8 +43,7 @@ CDriveScript CDriveScriptManager::load(const std::string drivetype)
 	// Look up the drive type
 	map<string,string>::const_iterator it = mDrivetypes.find(drivetype);
 	if (it == mDrivetypes.end()) {
-		cerr << "Drivetype not found" << endl;
-		throw -1;
+		throw EInvalidDrivetype(drivetype);
 	}
 
 	// Drive type is valid, and it->second contains the script file name

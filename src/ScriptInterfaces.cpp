@@ -14,8 +14,8 @@
 
 // Local headers
 #include "CDriveInfo.hpp"
+#include "Exceptions.hpp"
 #include "ScriptInterfaces.hpp"
-#include "EDriveSpecParse.hpp"
 
 using namespace std;
 
@@ -59,10 +59,10 @@ CScriptInterface::CScriptInterface(const std::string filename)
 		// Load the script into Lua
 		err = luaL_dofile(L, filename.c_str());
 		if (err) {
-			lua_pop(L, 1); // pop error message off of stack
-			cerr << "Error loading Lua script: " << lua_tostring(L, -1) << endl;
+			const char *errstr = lua_tostring(L, -1);
+			lua_pop(L, 1);	// pop error message from stack
 			lua_close(L);	// close down lua
-			throw -1;		// TODO: throw something better
+			throw ELuaError(errstr);
 		}
 	}
 }
@@ -87,22 +87,19 @@ CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filena
 		while (lua_next(L, -2) != 0) {
 			// uses 'key' at index -2, and 'value' at index -1
 
+			// Make sure this is a table, not an array
+			if (lua_isnumber(L, -2)) {
+				// Key isn't a string identifier. This isn't a table.
+				lua_close(L);
+				throw EDriveSpecParse("drivespecs must be a table, not a numerically-indexed array.");
+			}
+
 			// Check that 'value' is a table
 			if (!lua_istable(L, -1)) {
 				// This isn't a table... what does the user think they're playing at?
-				throw EDriveSpecParse("drivespecs table contains a non-table entity.", lua_tointeger(L, -2));
+				const char *specname = lua_tostring(L, -2);
 				lua_close(L);
-				//TODO! throw something proper
-				throw -1;
-			}
-
-			// Make sure this is a table, not an array
-			if (lua_isnumber(L, -2)) {
-				// Key isn't a string identifier.
-				throw EDriveSpecParse("drivespecs is an array, not a table.", lua_tointeger(L, -3));
-				lua_close(L);
-				//TODO! throw something proper
-				throw -1;
+				throw EDriveSpecParse("drivespecs table contains a non-table entity.", specname);
 			}
 
 			// Get the drivetype and store it
@@ -117,12 +114,13 @@ CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filena
 		lua_pop(L, 1);
 	} catch (EDriveSpecParse &e) {
 		// Parse error / format violation. Let the user know what (we think) they did wrong...
-		if (e.spec() == -1)
+		// TODO: shouldn't use cerr here; we should let the host handle this
+		if (string(e.spec()).length() == 0)
 			cerr << "[" << filename << "]: DriveSpec format violation: " << e.what() << endl;
 		else
 			cerr << "[" << filename << ", block " << e.spec() << "]: DriveSpec format violation: " << e.what() << endl;
-		//TODO! throw something proper
-		throw -1;
+
+		throw;
 	}
 }
 
@@ -133,9 +131,9 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// make sure it's a table
 	if (!lua_istable(L, -1)) {
-		// TODO: this should be an Internal Error
-		throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.");
+		throw EInternalScriptingError("DriveSpec script does not contain a 'drivespecs' table.");
 	}
+
 	// push the table key and retrieve the entry
 	lua_pushstring(L, drivetype.c_str());
 	lua_gettable(L, -2);	// get drivespecs[drivetype]
@@ -167,12 +165,12 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			// [string] Friendly name
 			friendlyname = lua_tostring(L, -1);
 			if (friendlyname.length() == 0)
-				throw EDriveSpecParse("friendlyname not valid.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("friendlyname not valid.", lua_tostring(L, -4));
 		} else if (key.compare("heads") == 0) {
 			// [integer] Number of heads
 			heads = lua_tointeger(L, -1);
 			if (heads < 1)
-				throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", lua_tostring(L, -4));
 		} else if (key.compare("spinup") == 0) {
 			// [integer] Spinup time, milliseconds
 			spinup = lua_tointeger(L, -1);
@@ -181,19 +179,19 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			double x = lua_tonumber(L, -1);
 			steprate = x * 1000;	// convert from milliseconds to microseconds
 			if ((steprate < 250) || (steprate > (255*250)))
-				throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", lua_tostring(L, -4));
 		} else if (key.compare("tracks") == 0) {
 			// [integer] Number of tracks
 			tracks = lua_tointeger(L, -1);
 			if (tracks < 1)
-				throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", lua_tostring(L, -4));
 		} else if (key.compare("trackstep") == 0) {
 			// [integer] Number of physical tracks to step for each logical track
 			trackstep = lua_tointeger(L, -1);
 			if (trackstep < 1)
-				throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", lua_tointeger(L, -4));
+				throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", lua_tostring(L, -4));
 		} else {
-			throw EDriveSpecParse("Unrecognised key \"" + key + "\"", lua_tointeger(L, -4));
+			throw EDriveSpecParse("Unrecognised key \"" + key + "\"", lua_tostring(L, -4));
 		}
 
 		// pop value off of stack, leave key for next iteration
@@ -202,7 +200,7 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// Now we have all our keys, try to make a CDriveInfo
 	if (friendlyname.compare("$$unspecified$$") == 0)
-		throw EDriveSpecParse("Friendlyname string not specified.", lua_tointeger(L, -2));
+		throw EDriveSpecParse("Friendlyname string not specified.", lua_tostring(L, -2));
 	CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
 
 	return driveinfo;
@@ -221,11 +219,12 @@ bool CDriveScript::isDriveReady(const std::string drivetype, const unsigned long
 	lua_pushnumber(L, status);				// status value from discferret_get_status()
 	err = lua_pcall(L, 2, 1, 0);	// 2 parameters, 1 return value
 	if (err) {
-		// TODO: throw exception on error --> remove cerr!
-//				cerr << "Error calling isDriveReady: " << lua_tostring(L, -1) << endl;
+		// error -- throw an exception
+		const char *errmsg = lua_tostring(L, -1);
 		lua_pop(L, 1);	// pop error message off of stack
-		return false;
+		throw ELuaError(errmsg);
 	} else {
+		// success -- return drive ready/not ready state
 		result = lua_toboolean(L, -1);
 		lua_pop(L, 1);	// pop result off of stack
 		return result;
@@ -246,12 +245,13 @@ bool CDriveScript::getDriveOutputs(const std::string drivetype, const unsigned l
 	lua_pushnumber(L, sector);				// physical sector
 	err = lua_pcall(L, 4, 1, 0);			// 4 parameters, 1 return value
 	if (err) {
-		// TODO: throw exception on error
-//				cerr << "Error calling getDriveOutputs: " << lua_tostring(L, -1) << endl;
+		// error -- throw an exception
+		const char *errmsg = lua_tostring(L, -1);
 		lua_pop(L, 1);	// pop error message off of stack
-		return false;
+		throw ELuaError(errmsg);
 	} else {
-		result = lua_toboolean(L, -1);
+		// success -- return drive ready/not ready state
+		result = lua_tointeger(L, -1);
 		lua_pop(L, 1);	// pop result off of stack
 		return result;
 	}
