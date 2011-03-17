@@ -133,7 +133,8 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// make sure it's a table
 	if (!lua_istable(L, -1)) {
-		throw EInternalScriptingError("DriveSpec script does not contain a 'drivespecs' table, but it has already been loaded.");
+		// This is an Internal Error because the ctor checks this...!
+		throw EInternalScriptingError("DriveSpec script does not contain a 'drivespecs' table, but it has already been loaded.", filename);
 	}
 
 	// push the table key and retrieve the entry
@@ -142,7 +143,8 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// make sure the drivespec entry is a table (drivespecs is a table-of-tables)
 	if (!lua_istable(L, -1)) {
-		throw EDriveSpecParse("DriveSpec entry '" + drivetype + "' is not a table.", "unknown script");
+		// This is an Internal Error because the ctor checks this...!
+		throw EInternalScriptingError("DriveSpec entry '" + drivetype + "' is not a table.", filename);
 	}
 
 	// Temporary storage for drivespec fields (CDriveInfo's mandatory parameters are immutable)

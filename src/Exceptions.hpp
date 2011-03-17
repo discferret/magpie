@@ -1,38 +1,32 @@
-#ifndef _hpp_EDriveSpecParse
-#define _hpp_EDriveSpecParse
+#ifndef _hpp_Exceptions
+#define _hpp_Exceptions
 
 #include <exception>
 
-/**
- * Exception class for DriveSpec parse errors
- */
-class EDriveSpecParse : public std::exception {
-	private:
-		std::string x, _spec, _filename;
-	public:
-		EDriveSpecParse(const std::string error, const std::string filename, const std::string specname) : exception() {
-			x = error;
-			_filename = filename;
-			_spec = specname;
-		}
-		EDriveSpecParse(const std::string error, const std::string filename) : exception() {
-			x = error;
-			_filename = filename;
-			_spec = "";
-		}
-		virtual ~EDriveSpecParse() throw() {};
-
-		virtual const char* what() const throw() {
-			if (_spec.length() > 0) {
-				return ("[" + _filename + ", drivespec '" + _spec + "']: " + x).c_str();
-			} else {
-				return ("[" + _filename + "]: " + x).c_str();
-			}
-		}
-		virtual const char* spec() const throw() { return _spec.c_str(); }
-		virtual const char* filename() const throw() { return _filename.c_str(); }
-		virtual const char* error() const throw() { return x.c_str(); }
-};
+/// An exception with a filename and a specname
+#define XCPTFSN(name, errorstr)	\
+	class name : public std::exception {																				\
+		private:																										\
+			std::string x, _spec, _filename;																			\
+		public:																											\
+			name(const std::string error, const std::string filename, const std::string specname = "") : exception() {	\
+				x = error;																								\
+				_filename = filename;																					\
+				_spec = specname;																						\
+			}																											\
+			virtual ~name() throw() {};																					\
+																														\
+			virtual const char* what() const throw() {																	\
+				if (_spec.length() > 0) {																				\
+					return ("[" + _filename + ", drivespec '" + _spec + "']: " + errorstr + x).c_str();					\
+				} else {																								\
+					return ("[" + _filename + "]: " + errorstr + x).c_str();											\
+				}																										\
+			}																											\
+			virtual const char* spec() const throw() { return _spec.c_str(); }											\
+			virtual const char* filename() const throw() { return _filename.c_str(); }									\
+			virtual const char* error() const throw() { return x.c_str(); }												\
+	}
 
 /// A generic exception
 #define XCPT(name, errorstr) \
@@ -52,17 +46,20 @@ class EDriveSpecParse : public std::exception {
 			virtual const char* what() const throw() { return x.c_str(); }			\
 	}
 
+/// Exception class for DriveSpec parse errors
+XCPTFSN(EDriveSpecParse, "DriveSpec script parse error: ");
+/// Internal error in the scripting engine
+XCPTFSN(EInternalScriptingError, "Internal script engine error: ");
 
 /// Lua parse or runtime error
 XCPTS(ELuaError, "Lua error: ");
-/// Internal error in the scripting engine
-XCPTS(EInternalScriptingError, "Internal script engine error: ");
 /// Drivetype not known
 XCPTS(EInvalidDrivetype, "Invalid drive type: ");
 
 
+#undef XCPTFSN
 #undef XCPT
 #undef XCPTS
 
-#endif // _hpp_EDriveSpecParse
+#endif // _hpp_Exceptions
 
