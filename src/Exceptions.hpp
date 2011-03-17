@@ -14,8 +14,8 @@ class EDriveSpecParse : public std::exception {
 		EDriveSpecParse(const std::string error) : exception(), x(error), _spec("") { };
 		virtual ~EDriveSpecParse() throw() {};
 
-		virtual const char* what() throw() { return x.c_str(); }
-		virtual const char* spec() { return _spec.c_str(); }
+		virtual const char* what() const throw() { return x.c_str(); }
+		virtual const char* spec() const throw() { return _spec.c_str(); }
 };
 
 /// A generic exception
@@ -26,23 +26,23 @@ class EDriveSpecParse : public std::exception {
 	}
 
 /// An exception which accepts a string parameter on throwing
-#define XCPTS(name) \
-	class name : public std::exception {									\
-		private:															\
-			std::string x;													\
-		public:																\
-			name(const std::string error) : exception(), x(error) {};		\
-			virtual ~name() throw() {};										\
-			virtual const char* what() throw() { return x.c_str(); }		\
+#define XCPTS(name, errorstr) \
+	class name : public std::exception {											\
+		private:																	\
+			std::string x;															\
+		public:																		\
+			name(const std::string error) : exception(), x(errorstr + error) {};	\
+			virtual ~name() throw() {};												\
+			virtual const char* what() const throw() { return x.c_str(); }			\
 	}
 
 
 /// Lua parse or runtime error
-XCPTS(ELuaError);
+XCPTS(ELuaError, "Lua error: ");
 /// Internal error in the scripting engine
-XCPTS(EInternalScriptingError);
+XCPTS(EInternalScriptingError, "Internal script engine error: ");
 /// Drivetype not known
-XCPTS(EInvalidDrivetype);
+XCPTS(EInvalidDrivetype, "Invalid drive type: ");
 
 
 #undef XCPT
