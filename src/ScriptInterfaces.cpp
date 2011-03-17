@@ -24,9 +24,11 @@ extern "C" {
 	LUALIB_API int luaopen_bit(lua_State *L);
 }
 
-CScriptInterface::CScriptInterface(const std::string filename)
+CScriptInterface::CScriptInterface(const std::string _filename)
 {
 	int err;
+
+	filename = _filename;
 
 	// Set up Lua
 	// TODO: error checking! throw exception if something goes wrong!
@@ -75,13 +77,13 @@ CScriptInterface::~CScriptInterface()
 
 /////////////////////////////////////////////////////////////////////////////
 
-CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filename)
+CDriveScript::CDriveScript(const std::string _filename) : CScriptInterface(_filename)
 {
 	// Scan through all the Drive Specs in this file -- TODO: error check
 	try {
 		lua_getfield(L, LUA_GLOBALSINDEX, "drivespecs");
 		if (!lua_istable(L, -1)) {
-			throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.");
+			throw EDriveSpecParse("DriveSpec script does not contain a 'drivespecs' table.", filename);
 		}
 		lua_pushnil(L);		// first key
 		while (lua_next(L, -2) != 0) {
@@ -91,7 +93,7 @@ CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filena
 			if (lua_isnumber(L, -2)) {
 				// Key isn't a string identifier. This isn't a table.
 				lua_close(L);
-				throw EDriveSpecParse("drivespecs must be a table, not a numerically-indexed array.");
+				throw EDriveSpecParse("drivespecs must be a table, not a numerically-indexed array.", filename);
 			}
 
 			// Check that 'value' is a table
@@ -99,7 +101,7 @@ CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filena
 				// This isn't a table... what does the user think they're playing at?
 				const char *specname = lua_tostring(L, -2);
 				lua_close(L);
-				throw EDriveSpecParse("drivespecs table contains a non-table entity.", specname);
+				throw EDriveSpecParse("drivespecs table contains a non-table entity.", filename, specname);
 			}
 
 			// Get the drivetype and store it
@@ -115,11 +117,11 @@ CDriveScript::CDriveScript(const std::string filename) : CScriptInterface(filena
 	} catch (EDriveSpecParse &e) {
 		// Parse error / format violation. Let the user know what (we think) they did wrong...
 		// TODO: shouldn't use cerr here; we should let the host handle this
-		if (string(e.spec()).length() == 0)
+/*		if (string(e.spec()).length() == 0)
 			cerr << "[" << filename << "]: DriveSpec format violation: " << e.what() << endl;
 		else
 			cerr << "[" << filename << ", block " << e.spec() << "]: DriveSpec format violation: " << e.what() << endl;
-
+*/
 		throw;
 	}
 }
@@ -131,7 +133,7 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// make sure it's a table
 	if (!lua_istable(L, -1)) {
-		throw EInternalScriptingError("DriveSpec script does not contain a 'drivespecs' table.");
+		throw EInternalScriptingError("DriveSpec script does not contain a 'drivespecs' table, but it has already been loaded.");
 	}
 
 	// push the table key and retrieve the entry
@@ -140,7 +142,7 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// make sure the drivespec entry is a table (drivespecs is a table-of-tables)
 	if (!lua_istable(L, -1)) {
-		throw EDriveSpecParse("DriveSpec entry '" + drivetype + "' is not a table.");
+		throw EDriveSpecParse("DriveSpec entry '" + drivetype + "' is not a table.", "unknown script");
 	}
 
 	// Temporary storage for drivespec fields (CDriveInfo's mandatory parameters are immutable)
@@ -165,12 +167,12 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			// [string] Friendly name
 			friendlyname = lua_tostring(L, -1);
 			if (friendlyname.length() == 0)
-				throw EDriveSpecParse("friendlyname not valid.", lua_tostring(L, -4));
+				throw EDriveSpecParse("friendlyname not valid.", filename, lua_tostring(L, -4));
 		} else if (key.compare("heads") == 0) {
 			// [integer] Number of heads
 			heads = lua_tointeger(L, -1);
 			if (heads < 1)
-				throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", lua_tostring(L, -4));
+				throw EDriveSpecParse("Value of 'heads' parameter must be an integer greater than zero.", filename, lua_tostring(L, -4));
 		} else if (key.compare("spinup") == 0) {
 			// [integer] Spinup time, milliseconds
 			spinup = lua_tointeger(L, -1);
@@ -179,19 +181,19 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			double x = lua_tonumber(L, -1);
 			steprate = x * 1000;	// convert from milliseconds to microseconds
 			if ((steprate < 250) || (steprate > (255*250)))
-				throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", lua_tostring(L, -4));
+				throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", filename, lua_tostring(L, -4));
 		} else if (key.compare("tracks") == 0) {
 			// [integer] Number of tracks
 			tracks = lua_tointeger(L, -1);
 			if (tracks < 1)
-				throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", lua_tostring(L, -4));
+				throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", filename, lua_tostring(L, -4));
 		} else if (key.compare("trackstep") == 0) {
 			// [integer] Number of physical tracks to step for each logical track
 			trackstep = lua_tointeger(L, -1);
 			if (trackstep < 1)
-				throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", lua_tostring(L, -4));
+				throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", filename, lua_tostring(L, -4));
 		} else {
-			throw EDriveSpecParse("Unrecognised key \"" + key + "\"", lua_tostring(L, -4));
+			throw EDriveSpecParse("Unrecognised key \"" + key + "\"", filename, lua_tostring(L, -4));
 		}
 
 		// pop value off of stack, leave key for next iteration
@@ -200,7 +202,7 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 
 	// Now we have all our keys, try to make a CDriveInfo
 	if (friendlyname.compare("$$unspecified$$") == 0)
-		throw EDriveSpecParse("Friendlyname string not specified.", lua_tostring(L, -2));
+		throw EDriveSpecParse("Friendlyname string not specified.", filename, lua_tostring(L, -2));
 	CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
 
 	return driveinfo;

@@ -18,9 +18,10 @@
 class CScriptInterface {
 	protected:
 		lua_State *L;
+		std::string filename;
 
 	public:
-		CScriptInterface(const std::string filename);
+		CScriptInterface(const std::string _filename);
 		~CScriptInterface();
 };
 
@@ -29,7 +30,7 @@ class CDriveScript : public CScriptInterface {
 		std::vector<std::string> svDrivetypes;
 
 	public:
-		CDriveScript(const std::string filename);
+		CDriveScript(const std::string _filename);
 
 		CDriveInfo GetDriveInfo(const std::string drivetype);
 

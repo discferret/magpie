@@ -8,14 +8,30 @@
  */
 class EDriveSpecParse : public std::exception {
 	private:
-		std::string x, _spec;
+		std::string x, _spec, _filename;
 	public:
-		EDriveSpecParse(const std::string error, const std::string specname) : exception(), x(error), _spec(specname) { };
-		EDriveSpecParse(const std::string error) : exception(), x(error), _spec("") { };
+		EDriveSpecParse(const std::string error, const std::string filename, const std::string specname) : exception() {
+			x = error;
+			_filename = filename;
+			_spec = specname;
+		}
+		EDriveSpecParse(const std::string error, const std::string filename) : exception() {
+			x = error;
+			_filename = filename;
+			_spec = "";
+		}
 		virtual ~EDriveSpecParse() throw() {};
 
-		virtual const char* what() const throw() { return x.c_str(); }
+		virtual const char* what() const throw() {
+			if (_spec.length() > 0) {
+				return ("[" + _filename + ", drivespec '" + _spec + "']: " + x).c_str();
+			} else {
+				return ("[" + _filename + "]: " + x).c_str();
+			}
+		}
 		virtual const char* spec() const throw() { return _spec.c_str(); }
+		virtual const char* filename() const throw() { return _filename.c_str(); }
+		virtual const char* error() const throw() { return x.c_str(); }
 };
 
 /// A generic exception
