@@ -9,7 +9,7 @@
 class GenericScriptManager {
 	public:
 		virtual void scan(const std::string filename) =0;
-		virtual void scandir(const std::string path);
+		virtual void scandir(const std::string path, int recursionLimit = 10);
 };
 
 class CDriveScriptManager : public GenericScriptManager {

@@ -6,10 +6,14 @@
 
 using namespace std;
 
-void GenericScriptManager::scandir(const std::string path)
+void GenericScriptManager::scandir(const std::string path, int recursionLimit)
 {
 	DIR *dp;
 	struct dirent *dt;
+
+	// Prevent infinite recursion
+	if (recursionLimit == 0) return;
+
 	dp = opendir(path.c_str());
 	while ((dt = readdir(dp)) != NULL) {
 		string filename = path + "/";
@@ -20,15 +24,13 @@ void GenericScriptManager::scandir(const std::string path)
 
 		// What is this directory entry?
 		if (dt->d_type == DT_DIR) {
-			// it's a subdirectory...
-			// TODO: recursion limit
+			// it's a subdirectory... scan it too.
 			cout << "traversing directory: " << filename <<endl;
-			this->scandir(filename);
+			this->scandir(filename, recursionLimit - 1);
 		} else if (dt->d_type == DT_REG) {
 			// skip files which aren't lua scripts
 			if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
-
-			// it's a regular file... load it as a script.
+			// didn't skip, so it must be a lua script
 			this->scan(filename);
 		}
 	}
