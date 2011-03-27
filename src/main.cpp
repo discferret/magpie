@@ -35,7 +35,19 @@ int bVerbose = false;
 
 /////////////////////////////////////////////////////////////////////////////
 
-
+void usage(char *appname)
+{
+	cout
+		<< "Usage:" << endl
+		<< "   " << appname << " [--verbose] --drive drivetype --format formattype" <<endl
+		<< "      [--serial serialnum]" << endl
+		<< endl
+		<< "Where:" << endl
+		<< "   drivetype   Type of disc drive attached to the DiscFerret" << endl
+		<< "   formattype  Type of the disc inserted in the drive" << endl
+		<< "   serialnum   Serial number of the DiscFerret to connect to. If this is" << endl
+		<< "               not specified, then the first DiscFerret will be used." << endl;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // "I am main(), king of kings. Look upon my works, ye mighty, and despair!"
@@ -43,10 +55,13 @@ int bVerbose = false;
 
 int main(int argc, char **argv)
 {
+	string drivetype, formattype;
+
 	while (1) {
 		// Getopt option table
 		static const struct option opts_long[] = {
 			// name			has_arg				flag			val
+			{"help",		no_argument,		0,				'h'},
 			{"verbose",		no_argument,		&bVerbose,		true},
 			{"drive",		required_argument,	0,				'd'},
 			{"format",		required_argument,	0,				'f'},
@@ -65,11 +80,20 @@ int main(int argc, char **argv)
 		switch (c) {
 			case 0:	break;			// option set a flag (ignore this)
 
+			case 'h':
+				// show help and quit
+				usage(argv[0]);
+				return EXIT_SUCCESS;
+
 			case 'd':
-				// set drive type TODO
+				// set drive type
+				drivetype = optarg;
+				break;
 
 			case 'f':
-				// set format TODO
+				// set format type
+				formattype = optarg;
+				break;
 
 			case 's':
 				// discferret unit serial number TODO
@@ -93,14 +117,31 @@ int main(int argc, char **argv)
 
 	if (bVerbose) cout << "Verbose mode ON\n";
 
-	// TODO: make sure drivetype and format have been specified
+	// Scan for drive scripts
+	CDriveScriptManager dsmgr;
+	dsmgr.scandir(DRIVESCRIPTDIR);
 
-	// TODO: Scan through the available scripts (getdir etc.)
-//	TraverseScriptDir(DRIVESCRIPTDIR);
-	CDriveScriptManager dsm;
-	dsm.scandir(DRIVESCRIPTDIR);
-	dsm.load("cdc_94205_51");
-	dsm.load("cdc_94205_52");
+	// Make sure the user specified a valid drive type
+	CDriveScript *drivescript;
+	try {
+		if (drivetype.length() != 0) {
+			drivescript = new CDriveScript(dsmgr.load(drivetype));
+		} else {
+			cerr << "Error: drive type not specified." << endl;
+			return EXIT_FAILURE;
+		}
+	} catch (...) {
+		cerr << "Error: drive type '" << drivetype << "' was not defined by a drive script." << endl;
+		return EXIT_FAILURE;
+	}
+
+	// TODO: make sure drivetype and format have been specified
+//	CDriveScript dx = dsm.load("cdc_94205_51");
+//	CDriveScript dy = dsm.load("pc35a");
+//	CDriveScript dz = dsm.load("nonexistent");
+
+	// When it's all over, we still have to clean up...
+	delete drivescript;
 
 	return 0;
 }
