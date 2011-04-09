@@ -22,6 +22,7 @@
 // Local headers
 #include "ScriptInterfaces.hpp"
 #include "ScriptManagers.hpp"
+#include "Exceptions.hpp"
 
 using namespace std;
 
@@ -55,7 +56,7 @@ void usage(char *appname)
 
 int main(int argc, char **argv)
 {
-	string drivetype, formattype;
+	string drivetype, formattype, serialnum;
 
 	while (1) {
 		// Getopt option table
@@ -96,10 +97,8 @@ int main(int argc, char **argv)
 				break;
 
 			case 's':
-				// discferret unit serial number TODO
-				printf("option %c", c);
-				if (optarg) printf(" with arg %s\n", optarg);
-					else printf("\n");
+				// discferret unit serial number
+				serialnum = optarg;
 				break;
 
 			case '?':
@@ -135,13 +134,63 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	// TODO: make sure drivetype and format have been specified
-//	CDriveScript dx = dsm.load("cdc_94205_51");
-//	CDriveScript dy = dsm.load("pc35a");
-//	CDriveScript dz = dsm.load("nonexistent");
+	// TODO: implement format scripts to allow for weird stuff like Amiga mfmsync and MultiCycle Sampling
+
+	int errcode = EXIT_SUCCESS;
+	DISCFERRET_DEVICE_HANDLE *dh = NULL;
+	try {
+		// Try and initialise the DiscFerret API
+		DISCFERRET_ERROR e;
+		
+		e = discferret_init();
+		if (e != DISCFERRET_E_OK) {
+			cerr << "Error initialising libdiscferret. Error code: " << e << endl;
+			throw EApplicationError();
+		}
+
+		// Did the user spec a DiscFerret serial number to look for?
+		if (serialnum.length() > 0) {
+			// Yep -- open the specific DiscFerret requested
+			e = discferret_open(serialnum.c_str(), &dh);
+		} else {
+			// No serial number specified, open the first DiscFerret
+			e = discferret_open_first(&dh);
+		}
+
+		if (e != DISCFERRET_E_OK) {
+			cerr << "Error opening DiscFerret device. Is it connected and powered on? (error code " << e << ")" << endl;
+			throw EApplicationError();
+		}
+
+		// Upload the DiscFerret microcode
+		e = discferret_fpga_load_rbf(dh, discferret_microcode, discferret_microcode_length);
+		if (e != DISCFERRET_E_OK) {
+			cerr << "Error loading DiscFerret microcode." << endl;
+			throw EApplicationError();
+		}
+
+		// Show information about the DiscFerret in use
+		DISCFERRET_DEVICE_INFO devinfo;
+		e = discferret_get_info(dh, &devinfo);
+		if (e != DISCFERRET_E_OK) throw ECommunicationError();
+		cout << "Connected to DiscFerret with serial number " << devinfo.serialnumber << endl;
+		cout << "Revision info: hardware " << devinfo.hardware_rev << ", firmware " << devinfo.firmware_ver << endl;
+		cout << "Microcode type " << devinfo.microcode_type << ", revision " << devinfo.microcode_ver << endl;
+
+		// DiscFerret is open, read the disc!
+
+	} catch (EApplicationError &e) {
+		// Set error flag
+		errcode = EXIT_FAILURE;
+	}
 
 	// When it's all over, we still have to clean up...
+	// Shut down libdiscferret
+	discferret_close(dh);
+	discferret_done();
+
+	// Final cleanup
 	delete drivescript;
 
-	return 0;
+	return errcode;
 }

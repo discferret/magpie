@@ -56,6 +56,10 @@ XCPTS(ELuaError, "Lua error: ");
 /// Drivetype not known
 XCPTS(EInvalidDrivetype, "Invalid drive type: ");
 
+/// Application error
+XCPT(EApplicationError, "Application error");
+/// DiscFerret communications error
+XCPT(ECommunicationError, "DiscFerret communication error");
 
 #undef XCPTFSN
 #undef XCPT
