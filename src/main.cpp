@@ -219,9 +219,12 @@ int main(int argc, char **argv)
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error resetting acquisition engine");
 
 		// Recalibrate (seek to track zero) -- TODO: 84 ==> drive.tracks
-		e = discferret_seek_recalibrate(dh, 84);
+		e = discferret_seek_recalibrate(dh, 84+1);
 		cerr << "seekcode " << e << endl;
-		if ((e != DISCFERRET_E_TRACK0_REACHED) && (e != DISCFERRET_E_OK)) throw EApplicationError("Error seeking to track zero");
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
+
+		// 512K timing buffer
+		unsigned char *buffer = new unsigned char[512*1024];
 
 		// Loop over all possible tracks (TODO: 84 ==> format.tracks)
 		for (unsigned long track = 0; track < 84; track++) {
@@ -265,6 +268,13 @@ int main(int argc, char **argv)
 
 					// TODO: offload data
 					cout << "CHS " << track << ":" << head << ":" << sector << ", " << discferret_ram_addr_get(dh) << " bytes of acq data" << endl;
+					long nbytes = discferret_ram_addr_get(dh);
+					if (nbytes < 1) throw EApplicationError("Invalid byte count!");
+					e = discferret_ram_addr_set(dh, 0);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address to zero");
+					e = discferret_ram_read(dh, buffer, nbytes);
+					cout << "acqram read code " << e;
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error reading data from acquisition RAM");
 				}
 			}
 		}
