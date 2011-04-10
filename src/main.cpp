@@ -13,6 +13,7 @@
 #include <string>
 #include <map>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <getopt.h>
 
@@ -144,8 +145,9 @@ int main(int argc, char **argv)
 		
 		e = discferret_init();
 		if (e != DISCFERRET_E_OK) {
-			cerr << "Error initialising libdiscferret. Error code: " << e << endl;
-			throw EApplicationError();
+			stringstream s("Error initialising libdiscferret. Error code: ");
+			s << e;
+			throw EApplicationError(s.str());
 		}
 
 		// Did the user spec a DiscFerret serial number to look for?
@@ -158,16 +160,16 @@ int main(int argc, char **argv)
 		}
 
 		if (e != DISCFERRET_E_OK) {
-			cerr << "Error opening DiscFerret device. Is it connected and powered on? (error code " << e << ")" << endl;
-			throw EApplicationError();
+			stringstream s("Error opening DiscFerret device. Is it connected and powered on? (error code ");
+			s << e << ")";
+			throw EApplicationError(s.str());
 		}
 
 		// Upload the DiscFerret microcode
+		cout << "Loading microcode..." << endl;
 		e = discferret_fpga_load_rbf(dh, discferret_microcode, discferret_microcode_length);
-		if (e != DISCFERRET_E_OK) {
-			cerr << "Error loading DiscFerret microcode." << endl;
-			throw EApplicationError();
-		}
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error loading DiscFerret microcode.");
+		cout << "Microcode loaded successfully." << endl;
 
 		// Show information about the DiscFerret in use
 		DISCFERRET_DEVICE_INFO devinfo;
@@ -176,11 +178,27 @@ int main(int argc, char **argv)
 		cout << "Connected to DiscFerret with serial number " << devinfo.serialnumber << endl;
 		cout << "Revision info: hardware " << devinfo.hardware_rev << ", firmware " << devinfo.firmware_ver << endl;
 		cout << "Microcode type " << devinfo.microcode_type << ", revision " << devinfo.microcode_ver << endl;
+		cout << endl;
 
-		// DiscFerret is open, read the disc!
+		// Get some information about the disc type
+		CDriveInfo driveinfo = drivescript->GetDriveInfo(drivetype);
+		cout << "Drive type: '" << drivetype << "' (" << driveinfo.friendly_name() << ")" << endl;
+		cout << "??? tpi, " << driveinfo.tracks() << " tracks, " << driveinfo.heads() << " heads." << endl;
 
+		// Set up the step rate
+		e = discferret_seek_set_rate(dh, driveinfo.steprate_us());
+		if (e != DISCFERRET_E_OK) {
+			if (e == DISCFERRET_E_BAD_PARAMETER) {
+				throw EApplicationError("Seek rate out of range.");
+			} else {
+				throw EApplicationError("Error setting seek rate.");
+			}
+		}
 	} catch (EApplicationError &e) {
-		// Set error flag
+		cerr << "Application error: " << e.what() << endl;
+		errcode = EXIT_FAILURE;
+	} catch (ECommunicationError &e) {
+		cerr << e.what() << endl;
 		errcode = EXIT_FAILURE;
 	}
 
