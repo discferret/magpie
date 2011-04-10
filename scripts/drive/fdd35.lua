@@ -20,8 +20,8 @@ drivespecs = {
 		spinup				= 1000,
 		-- Number of physical tracks
 		tracks				= 84,
-		-- Track stepping -- 1=singlestep, 2=doublestep
-		trackstep			= 1,
+		-- Number of tracks per inch
+		tpi					= 135,
 		-- Number of physical heads
 		heads				= 2,
 	},
@@ -35,8 +35,8 @@ drivespecs = {
 		spinup				= 1000,
 		-- Number of physical tracks
 		tracks				= 84,
-		-- Track stepping -- 1=singlestep, 2=doublestep
-		trackstep			= 1,
+		-- Number of tracks per inch
+		tpi					= 135,
 		-- Number of physical heads
 		heads				= 2,
 	},

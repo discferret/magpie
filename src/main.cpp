@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 		// Get some information about the disc type
 		CDriveInfo driveinfo = drivescript->GetDriveInfo(drivetype);
 		cout << "Drive type: '" << drivetype << "' (" << driveinfo.friendly_name() << ")" << endl;
-		cout << "??? tpi, " << driveinfo.tracks() << " tracks, " << driveinfo.heads() << " heads." << endl;
+		cout << driveinfo.tpi() << " tpi, " << driveinfo.tracks() << " tracks, " << driveinfo.heads() << " heads." << endl;
 
 		// Set up the step rate
 		e = discferret_seek_set_rate(dh, driveinfo.steprate_us());
@@ -194,6 +194,14 @@ int main(int argc, char **argv)
 				throw EApplicationError("Error setting seek rate.");
 			}
 		}
+
+		/***
+		 * Figure out the track stepping, and if the drive and media are compatible.
+		 * If drive.tpi and format.tpi != 0, then we can do a compatibility check.
+		 * If frac(drive.tpi / format.tpi) == 0, then the formats are compatible.
+		 *    int(drive.tpi / format.tpi) gives the stepping interval (1=single
+		 *                                stepped, 2=double stepped etc.)
+		 */
 	} catch (EApplicationError &e) {
 		cerr << "Application error: " << e.what() << endl;
 		errcode = EXIT_FAILURE;

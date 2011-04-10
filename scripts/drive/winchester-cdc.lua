@@ -21,8 +21,8 @@ drivespecs = {
 		spinup				= 0,
 		-- Number of tracks
 		tracks				= 989,
-		-- track stepping -- 1=singlestep, 2=doublestep
-		trackstep			= 1,
+		-- Number of tracks per inch. Zero means "do not enforce" (but there will be a warning in the log file)
+		tpi					= 0,
 		-- Number of heads
 		heads				= 5
 	},

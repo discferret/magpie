@@ -151,9 +151,9 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 	string friendlyname = "$$unspecified$$";
 	unsigned int heads = 1,
 				 tracks = 40,
-				 trackstep = 1,
 				 spinup = 1000,
 				 steprate = 6000;
+	float tpi = 0;
 
 	// Now we parse the DriveSpec -- we do this using the same table iteration method we use above
 	lua_pushnil(L);		// Initial key
@@ -189,11 +189,11 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			tracks = lua_tointeger(L, -1);
 			if (tracks < 1)
 				throw EDriveSpecParse("Value of 'tracks' parameter must be an integer greater than zero.", filename, lua_tostring(L, -4));
-		} else if (key.compare("trackstep") == 0) {
-			// [integer] Number of physical tracks to step for each logical track
-			trackstep = lua_tointeger(L, -1);
-			if (trackstep < 1)
-				throw EDriveSpecParse("Value of 'trackstep' parameter must be an integer greater than zero.", filename, lua_tostring(L, -4));
+		} else if (key.compare("tpi") == 0) {
+			// [float] Number of physical tracks per inch
+			tpi = lua_tonumber(L, -1);
+			if (tpi < 0)
+				throw EDriveSpecParse("Value of 'tpi' parameter must be greater than or equal to zero.", filename, lua_tostring(L, -4));
 		} else {
 			throw EDriveSpecParse("Unrecognised key \"" + key + "\"", filename, lua_tostring(L, -4));
 		}
@@ -205,7 +205,7 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 	// Now we have all our keys, try to make a CDriveInfo
 	if (friendlyname.compare("$$unspecified$$") == 0)
 		throw EDriveSpecParse("Friendlyname string not specified.", filename, lua_tostring(L, -2));
-	CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, trackstep, heads);
+	CDriveInfo driveinfo(drivetype, friendlyname, steprate, spinup, tracks, tpi, heads);
 
 	return driveinfo;
 }
