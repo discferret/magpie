@@ -51,10 +51,10 @@ function getDriveOutputs(drivetype, track, head, sector)
 	-- 3.5in FDD settings are really easy to set up. First start with drive selects.
 	if drivetype == "pc35a" then
 		-- Shugart DS0 = motor enable A, DS2 = drive select A
-		pins = pins or PIN_DS0 or PIN_DS2
+		pins = pins + PIN_DS0 + PIN_DS2
 	elseif drivetype == "pc35b" then
 		-- Shugart DS1 = drive select B, MOTEN = motor enable B
-		pins = pins or PIN_DS1 or PIN_MOTEN
+		pins = pins + PIN_DS1 + PIN_MOTEN
 	else
 		error("Unrecognised drive type '" .. drivetype .. "'.")
 	end
@@ -63,7 +63,7 @@ function getDriveOutputs(drivetype, track, head, sector)
 	if head == 0 then
 		-- do nothing, Head 0 is PIN_SIDESEL (p32) inactive/floating high
 	elseif head == 1 then
-		pins = pins or PIN_SIDESEL
+		pins = pins + PIN_SIDESEL
 	else
 		error("Head number " .. head .. " out of range.")
 	end
