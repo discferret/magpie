@@ -235,9 +235,9 @@ bool CDriveScript::isDriveReady(const std::string drivetype, const unsigned long
 	}
 }
 
-bool CDriveScript::getDriveOutputs(const std::string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector)
+int CDriveScript::getDriveOutputs(const std::string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector)
 {
-	bool result;
+	int result;
 	int err;
 
 	// TODO: check drive type is in mDrives?

@@ -42,7 +42,7 @@ class CDriveScript : public CScriptInterface {
 		/**
 		 * @brief	Lua wrapper function for GetDriveOutputs() DriveSpec function
 		 */
-		bool getDriveOutputs(const std::string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector);
+		int getDriveOutputs(const std::string drivetype, const unsigned long track, const unsigned long head, const unsigned long sector);
 
 		const std::vector<std::string> getDrivetypes(void);
 };
