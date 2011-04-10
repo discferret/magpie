@@ -195,6 +195,13 @@ int main(int argc, char **argv)
 			}
 		}
 
+		// Now we're basically good to go. Select the drive.
+		e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, 0, 0, 1));
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error selecting disc drive");
+
+		// Wait for the drive to spin up
+		sleep((driveinfo.spinup_ms() % 1000)>0 ? (driveinfo.spinup_ms() / 1000) + 1 : driveinfo.spinup_ms() / 1000);
+
 		/***
 		 * Figure out the track stepping, and if the drive and media are compatible.
 		 * If drive.tpi and format.tpi != 0, then we can do a compatibility check.
@@ -202,6 +209,65 @@ int main(int argc, char **argv)
 		 *    int(drive.tpi / format.tpi) gives the stepping interval (1=single
 		 *                                stepped, 2=double stepped etc.)
 		 */
+		// TODO! REALLY BIG TODO! Implement this after implementing format spec scripts
+		int trackstep = 1;
+
+		// TODO: Multiply format.tracks by trackstep, if > drive.tracks, bail!
+
+		// Abort any current acquisitions
+		e = discferret_reg_poke(dh, DISCFERRET_R_ACQCON, DISCFERRET_ACQCON_ABORT);
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error resetting acquisition engine");
+
+		// Recalibrate (seek to track zero) -- TODO: 84 ==> drive.tracks
+		e = discferret_seek_recalibrate(dh, 84);
+		cerr << "seekcode " << e << endl;
+		if ((e != DISCFERRET_E_TRACK0_REACHED) && (e != DISCFERRET_E_OK)) throw EApplicationError("Error seeking to track zero");
+
+		// Loop over all possible tracks (TODO: 84 ==> format.tracks)
+		for (unsigned long track = 0; track < 84; track++) {
+			// Seek to the required track
+			discferret_seek_absolute(dh, track * trackstep);
+
+			// Loop over all possible heads (TODO: 2 ==> format.heads)
+			for (unsigned long head = 0; head < 2; head++) {
+
+				// Loop over all possible sectors (TODO: 1 ==> format.sectors and determine if hardsectored)
+				for (unsigned long sector = 1; sector <= 1; sector++) {
+					// Set disc drive outputs based on current CHS address
+
+					e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, track, head, sector));
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting disc drive control outputs");
+
+					// Set acq start event -- TODO: get this from the format spec
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_EVT, DISCFERRET_ACQ_EVENT_INDEX);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event");
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 1);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event count");
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_EVT, DISCFERRET_ACQ_EVENT_INDEX);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event");
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_NUM, 0);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event count");
+
+					// Set RAM pointer to zero
+					e = discferret_ram_addr_set(dh, 0);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address");
+
+					// Start the acquisition
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQCON, DISCFERRET_ACQCON_START);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error starting acquisition");
+
+					// Wait for the acquisition to complete
+					long i;
+					do {
+						i = discferret_get_status(dh);
+					} while ((i > 0) && ((i & DISCFERRET_STATUS_ACQSTATUS_MASK) != DISCFERRET_STATUS_ACQ_IDLE));
+					if (i < 0) throw EApplicationError("Error reading DiscFerret status register");
+
+					// TODO: offload data
+					cout << "CHS " << track << ":" << head << ":" << sector << ", " << discferret_ram_addr_get(dh) << " bytes of acq data" << endl;
+				}
+			}
+		}
 	} catch (EApplicationError &e) {
 		cerr << "Application error: " << e.what() << endl;
 		errcode = EXIT_FAILURE;
@@ -209,6 +275,9 @@ int main(int argc, char **argv)
 		cerr << e.what() << endl;
 		errcode = EXIT_FAILURE;
 	}
+
+	// Deselect the drive
+	discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, 0);
 
 	// When it's all over, we still have to clean up...
 	// Shut down libdiscferret
