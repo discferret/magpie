@@ -35,9 +35,9 @@ Called once per sector on hard-sectored media, once per track on soft-sectored m
 function getDriveOutputs(drivetype, track, head, sector)
 	pins = 0
 
-	if drivetype == "cdc-94205-51" then
+	if drivetype == "cdc_94205_51" then
 		-- CDC 94205-51, Seagate ST253
-		pins = pins or PIN_DS0
+		pins = pins + PIN_DS0
 	else
 		error("Unrecognised drive type '" .. drivetype .. "'.")
 	end
