@@ -218,8 +218,18 @@ int main(int argc, char **argv)
 		e = discferret_reg_poke(dh, DISCFERRET_R_ACQCON, DISCFERRET_ACQCON_ABORT);
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error resetting acquisition engine");
 
-		// Recalibrate (seek to track zero) -- TODO: 84 ==> drive.tracks
-		e = discferret_seek_recalibrate(dh, 84+1);
+		// Seek one track out from zero to move the head off the track-0 end stop.
+		// No error check because we really don't care if this fails.
+		e = discferret_seek_relative(dh, 1);
+
+		// Deselect then reselect. Clears seek errors. TODO: does it really?
+		e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, 0);
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error deselecting disc drive");
+		e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, 0, 0, 1));
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error reselecting disc drive");
+
+		// Recalibrate to zero
+		e = discferret_seek_recalibrate(dh, driveinfo.tracks());
 		cerr << "seekcode " << e << endl;
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
 
@@ -227,12 +237,12 @@ int main(int argc, char **argv)
 		unsigned char *buffer = new unsigned char[512*1024];
 
 		// Loop over all possible tracks (TODO: 84 ==> format.tracks)
-		for (unsigned long track = 0; track < 84; track++) {
+		for (unsigned long track = 0; track < driveinfo.tracks(); track++) {
 			// Seek to the required track
 			discferret_seek_absolute(dh, track * trackstep);
 
 			// Loop over all possible heads (TODO: 2 ==> format.heads)
-			for (unsigned long head = 0; head < 2; head++) {
+			for (unsigned long head = 0; head < driveinfo.heads(); head++) {
 
 				// Loop over all possible sectors (TODO: 1 ==> format.sectors and determine if hardsectored)
 				for (unsigned long sector = 1; sector <= 1; sector++) {
