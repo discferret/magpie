@@ -16,6 +16,8 @@
 #include <sstream>
 #include <algorithm>
 #include <getopt.h>
+// TODO: ctrl-c trap: signal.h / signal() on linux, something else on windows
+#include <signal.h>
 
 // DiscFerret
 #include <discferret/discferret.h>
@@ -37,6 +39,30 @@ int bVerbose = false;
 
 /// Abort flag. Set by the trap handler when the user presses Ctrl-C.
 int bAbort = false;
+
+/////////////////////////////////////////////////////////////////////////////
+// Ctrl-C trap handling
+
+// *nix signal(SIGINT) handler
+void sighandler(int sig)
+{
+	cerr << endl << "*** Caught signal " << sig << ", aborting..." << endl;
+	bAbort = true;
+}
+
+/**
+ * Enable or disable the Ctrl-C trap handler.
+ *
+ * @param act	true to activate the trap handler, false to disable it.
+ */
+void trap_break(bool act)
+{
+	if (act) {
+		signal(SIGINT, &sighandler);
+	} else {
+		signal(SIGINT, SIG_DFL);
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -275,6 +301,9 @@ int main(int argc, char **argv)
 		// 512K timing data buffer (the DiscFerret has 512K of RAM)
 		unsigned char *buffer = new unsigned char[512*1024];
 
+		// Set up the Ctrl-C handler
+		trap_break(true);
+
 		// Loop over all possible tracks
 		for (unsigned long track = 0; track < driveinfo.tracks(); track++) {
 			// Bail out if we've been asked to do so
@@ -348,7 +377,7 @@ int main(int argc, char **argv)
 		}
 
 		// We're done. Seek back to track 0 (the Landing Zone)
-		cout << "Moving heads back to track zero...";
+		cout << "Moving heads back to track zero..." << endl;
 		do {
 			// Wait for drive ready -- TODO: timeout
 			long stat;
@@ -393,6 +422,9 @@ int main(int argc, char **argv)
 
 	// Final cleanup
 	delete drivescript;
+
+	// Release Ctrl-C trap
+	trap_break(false);
 
 	return errcode;
 }
