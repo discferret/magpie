@@ -14,6 +14,7 @@
 #include <map>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <algorithm>
 #include <getopt.h>
 #ifdef _WIN32
@@ -174,7 +175,7 @@ void usage(char *appname)
 
 int main(int argc, char **argv)
 {
-	string drivetype, formattype, serialnum;
+	string drivetype, formattype, serialnum, outfile;
 
 	while (1) {
 		// Getopt option table
@@ -185,9 +186,10 @@ int main(int argc, char **argv)
 			{"drive",		required_argument,	0,				'd'},
 			{"format",		required_argument,	0,				'f'},
 			{"serial",		required_argument,	0,				's'},
+			{"outfile",		required_argument,	0,				'o'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
-		static const char *opts_short = "d:f:";
+		static const char *opts_short = "d:f:o:";
 
 		// getopt stores the option index here
 		int idx = 0;
@@ -217,6 +219,11 @@ int main(int argc, char **argv)
 			case 's':
 				// discferret unit serial number
 				serialnum = optarg;
+				break;
+
+			case 'o':
+				// output filename
+				outfile = optarg;
 				break;
 
 			case '?':
@@ -249,6 +256,12 @@ int main(int argc, char **argv)
 		}
 	} catch (...) {
 		cerr << "Error: drive type '" << drivetype << "' was not defined by a drive script." << endl;
+		return EXIT_FAILURE;
+	}
+
+	// Make sure the user specified an output file
+	if (outfile == "") {
+		cerr << "Error: output filename not specified." << endl;
 		return EXIT_FAILURE;
 	}
 
@@ -361,6 +374,13 @@ int main(int argc, char **argv)
 		// 512K timing data buffer (the DiscFerret has 512K of RAM)
 		unsigned char *buffer = new unsigned char[512*1024];
 
+		// Prepare to save the data
+		ofstream of;
+		of.open(outfile);
+
+		char x[5] = "DFER";
+		of.write(x, 4);
+
 		// Set up the Ctrl-C handler
 		trap_break(true);
 
@@ -424,11 +444,32 @@ int main(int argc, char **argv)
 					e = discferret_ram_addr_set(dh, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address to zero");
 					e = discferret_ram_read(dh, buffer, nbytes);
-					cout << "\tacqram read code " << e << endl;
+					// cout << "\tacqram read code " << e << endl;
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error reading data from acquisition RAM");
+
+					do {	// scope limiter
+						char x[16];
+						size_t i=0;
+
+						x[i++] = (track >> 8);
+						x[i++] = (track & 0xff);
+						x[i++] = (head >> 8);
+						x[i++] = (head & 0xff);
+						x[i++] = (sector >> 8);
+						x[i++] = (sector & 0xff);
+						x[i++] = (nbytes >> 24) & 0xff;
+						x[i++] = (nbytes >> 16) & 0xff;
+						x[i++] = (nbytes >> 8) & 0xff;
+						x[i++] = (nbytes) & 0xff;
+						of.write(x, i);
+						of.write((char *)buffer, nbytes);
+					} while (false);
 				}
 			}
 		}
+
+		// Close the output file
+		of.close();
 
 		// We're done. Seek back to track 0 (the Landing Zone)
 		cout << "Moving heads back to track zero..." << endl;
