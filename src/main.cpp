@@ -16,8 +16,14 @@
 #include <sstream>
 #include <algorithm>
 #include <getopt.h>
-// TODO: ctrl-c trap: signal.h / signal() on linux, something else on windows
-#include <signal.h>
+#ifdef _WIN32
+// Windows
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+#else
+// UNIX
+# include <signal.h>
+#endif
 
 // DiscFerret
 #include <discferret/discferret.h>
@@ -43,12 +49,20 @@ int bAbort = false;
 /////////////////////////////////////////////////////////////////////////////
 // Ctrl-C trap handling
 
+#ifdef _WIN32
+BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
+{
+	cerr << endl << "Caught termination signal; exiting as cleanly as possible!" << endl;
+	bAbort = true;
+}
+#else
 // *nix signal(SIGINT) handler
 void sighandler(int sig)
 {
 	cerr << endl << "*** Caught signal " << sig << ", aborting..." << endl;
 	bAbort = true;
 }
+#endif
 
 /**
  * Enable or disable the Ctrl-C trap handler.
@@ -58,9 +72,19 @@ void sighandler(int sig)
 void trap_break(bool act)
 {
 	if (act) {
+		// Substitute our own Ctrl-C handler
+#ifdef _WIN32
+		SetConsoleCtrlHandler((PHANDLER_ROUTINE) ConsoleHandler, TRUE);
+#else
 		signal(SIGINT, &sighandler);
+#endif
 	} else {
+		// Restore normal Ctrl-C handling functions
+#ifdef _WIN32
+		SetConsoleCtrlHandler(NULL, FALSE);
+#else
 		signal(SIGINT, SIG_DFL);
+#endif
 	}
 }
 
