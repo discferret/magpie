@@ -88,10 +88,21 @@ function init()
 		-- calculate drive size in MBytes
 		local mbytes = (ncyls * nheads * 17 * 512) / 1024 / 1024
 
-		-- save drivespec information
+		-- save drivespec information (standard 2ms seek time)
 		tn = string.format("pctype%02d", dtype)
 		drivespecs[tn] = {}
 		drivespecs[tn]['friendlyname']	= string.format("Winchester: PC type %d, CHS %d:%d:17, %d MiB",
+											dtype, ncyls, nheads, mbytes)
+		drivespecs[tn]['steprate']		= 7.0		-- default step rate: 7ms/step
+		drivespecs[tn]['spinup']		= 0			-- no spinup time (the drive signals READY)
+		drivespecs[tn]['tracks']		= ncyls		-- number of cylinders
+		drivespecs[tn]['heads']			= nheads	-- number of heads
+		drivespecs[tn]['tpi']			= 0			-- tracks per inch, unknown, "do not enforce" (but issue a warning in the log)
+
+		-- save drivespec information (buffered seek)
+		tn = string.format("pctype%02dbuf", dtype)
+		drivespecs[tn] = {}
+		drivespecs[tn]['friendlyname']	= string.format("Winchester: PC type %d, CHS %d:%d:17, %d MiB, buffered seek",
 											dtype, ncyls, nheads, mbytes)
 		drivespecs[tn]['steprate']		= 0.250		-- default step rate: 250us/step, buffered seek
 		drivespecs[tn]['spinup']		= 0			-- no spinup time (the drive signals READY)
