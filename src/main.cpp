@@ -230,18 +230,54 @@ int main(int argc, char **argv)
 
 		// Recalibrate to zero
 		e = discferret_seek_recalibrate(dh, driveinfo.tracks());
-		cerr << "seekcode " << e << endl;
+		if (e != DISCFERRET_E_OK) {
+			cout << "Recal Retry...\n";
+			// Hmm. That didn't work. Wait for drive-ready before trying again
+			long stat;
+			do {
+				stat = discferret_get_status(dh);
+			} while (!drivescript->isDriveReady(drivetype, stat));
+			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
+
+			// Try and recal again
+			e = discferret_seek_recalibrate(dh, driveinfo.tracks());
+		}
+
+		// Did the recal succeed?
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
 
-		// 512K timing buffer
+		// Wait for drive to become ready
+		do {	// scope limiter
+			long stat;
+			do {
+				stat = discferret_get_status(dh);
+			} while (!drivescript->isDriveReady(drivetype, stat));
+			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
+		} while (false);
+
+		// Measure disc rotation speed
+		double freq;
+		e = discferret_get_index_frequency(dh, true, &freq);
+		cout << "Measured rotation frequency: " << freq << endl;
+
+		// 512K timing data buffer (the DiscFerret has 512K of RAM)
 		unsigned char *buffer = new unsigned char[512*1024];
 
-		// Loop over all possible tracks (TODO: 84 ==> format.tracks)
+		// Loop over all possible tracks
 		for (unsigned long track = 0; track < driveinfo.tracks(); track++) {
 			// Seek to the required track
 			discferret_seek_absolute(dh, track * trackstep);
 
-			// Loop over all possible heads (TODO: 2 ==> format.heads)
+			// Wait for drive to become ready
+			do {	// scope limiter
+				long stat;
+				do {
+					stat = discferret_get_status(dh);
+				} while (!drivescript->isDriveReady(drivetype, stat));
+				if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
+			} while (false);
+
+			// Loop over all possible heads
 			for (unsigned long head = 0; head < driveinfo.heads(); head++) {
 
 				// Loop over all possible sectors (TODO: 1 ==> format.sectors and determine if hardsectored)
@@ -254,7 +290,7 @@ int main(int argc, char **argv)
 					// Set acq start event -- TODO: get this from the format spec
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event");
-					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 1);
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 1);		// TODO: can make things go faster by setting this to 0 (first-event)
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event count");
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event");
@@ -270,20 +306,22 @@ int main(int argc, char **argv)
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error starting acquisition");
 
 					// Wait for the acquisition to complete
-					long i;
-					do {
-						i = discferret_get_status(dh);
-					} while ((i > 0) && ((i & DISCFERRET_STATUS_ACQSTATUS_MASK) != DISCFERRET_STATUS_ACQ_IDLE));
-					if (i < 0) throw EApplicationError("Error reading DiscFerret status register");
+					do { // scope limiter
+						long i;
+						do {
+							i = discferret_get_status(dh);
+						} while ((i > 0) && ((i & DISCFERRET_STATUS_ACQSTATUS_MASK) != DISCFERRET_STATUS_ACQ_IDLE));
+						if (i < 0) throw EApplicationError("Error reading DiscFerret status register");
+					} while (false);
 
-					// TODO: offload data
+					// TODO: offload data ==> save to file!
 					cout << "CHS " << track << ":" << head << ":" << sector << ", " << discferret_ram_addr_get(dh) << " bytes of acq data" << endl;
 					long nbytes = discferret_ram_addr_get(dh);
 					if (nbytes < 1) throw EApplicationError("Invalid byte count!");
 					e = discferret_ram_addr_set(dh, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address to zero");
 					e = discferret_ram_read(dh, buffer, nbytes);
-					cout << "acqram read code " << e;
+					cout << "\tacqram read code " << e << endl;
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error reading data from acquisition RAM");
 				}
 			}
