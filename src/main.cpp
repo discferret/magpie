@@ -327,6 +327,11 @@ int main(int argc, char **argv)
 			}
 		}
 
+		// Set HSIOs to input mode (we don't use them)
+		e = discferret_reg_poke(dh, DISCFERRET_R_HSIO_DIR, 0xff);
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting HSIO pin direction");
+
+
 		// Now we're basically good to go. Select the drive.
 		e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, 0, 0, 1));
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error selecting disc drive");
@@ -406,7 +411,6 @@ int main(int argc, char **argv)
 					if (bAbort) break;
 
 					// Set disc drive outputs based on current CHS address
-
 					e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, track, head, sector));
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting disc drive control outputs");
 
@@ -438,8 +442,8 @@ int main(int argc, char **argv)
 					} while (false);
 
 					// TODO: offload data ==> save to file!
-					cout << "CHS " << track << ":" << head << ":" << sector << ", " << discferret_ram_addr_get(dh) << " bytes of acq data" << endl;
 					long nbytes = discferret_ram_addr_get(dh);
+					cout << "CHS " << track << ":" << head << ":" << sector << ", " << nbytes << " bytes of acq data" << endl;
 					if (nbytes < 1) throw EApplicationError("Invalid byte count!");
 					e = discferret_ram_addr_set(dh, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address to zero");
