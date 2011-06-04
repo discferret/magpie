@@ -35,6 +35,9 @@ using namespace std;
 /// Verbosity flag; true if verbose mode enabled.
 int bVerbose = false;
 
+/// Abort flag. Set by the trap handler when the user presses Ctrl-C.
+int bAbort = false;
+
 /////////////////////////////////////////////////////////////////////////////
 
 void usage(char *appname)
@@ -231,42 +234,52 @@ int main(int argc, char **argv)
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error reselecting disc drive");
 
 		// Recalibrate to zero
-		e = discferret_seek_recalibrate(dh, driveinfo.tracks());
-		if (e != DISCFERRET_E_OK) {
-			cout << "Recal Retry...\n";
-			// Hmm. That didn't work. Wait for drive-ready before trying again
+		do {
 			long stat;
+
+			// Wait for drive to become ready
 			do {
 				stat = discferret_get_status(dh);
-			} while (!drivescript->isDriveReady(drivetype, stat));
+			} while ((stat >= 0) && (!drivescript->isDriveReady(drivetype, stat)));
 			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
 
-			// Try and recal again
+			// Recalibrate (seek to track zero)
 			e = discferret_seek_recalibrate(dh, driveinfo.tracks());
-		}
+			if (e != DISCFERRET_E_OK) {
+				cout << "Recal Retry...\n";
+				// Hmm. That didn't work. Wait for drive-ready before trying again
+				do {
+					stat = discferret_get_status(dh);
+				} while ((stat >= 0) && (!drivescript->isDriveReady(drivetype, stat)));
+				if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
 
-		// Did the recal succeed?
-		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
+				// Try and recal again
+				e = discferret_seek_recalibrate(dh, driveinfo.tracks());
+			}
 
-		// Wait for drive to become ready
-		do {	// scope limiter
-			long stat;
+			// Did the recal succeed?
+			if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
+
+			// Wait for drive to become ready
 			do {
 				stat = discferret_get_status(dh);
-			} while (!drivescript->isDriveReady(drivetype, stat));
+			} while ((stat >= 0) && (!drivescript->isDriveReady(drivetype, stat)));
 			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
 		} while (false);
 
-		// Measure disc rotation speed
+		// Measure and display disc rotation speed
 		double freq;
 		e = discferret_get_index_frequency(dh, true, &freq);
-		cout << "Measured rotation frequency: " << freq << endl;
+		cout << "Measured disc rotation speed: " << freq << " RPM" << endl;
 
 		// 512K timing data buffer (the DiscFerret has 512K of RAM)
 		unsigned char *buffer = new unsigned char[512*1024];
 
 		// Loop over all possible tracks
 		for (unsigned long track = 0; track < driveinfo.tracks(); track++) {
+			// Bail out if we've been asked to do so
+			if (bAbort) break;
+
 			// Seek to the required track
 			discferret_seek_absolute(dh, track * trackstep);
 
@@ -281,9 +294,14 @@ int main(int argc, char **argv)
 
 			// Loop over all possible heads
 			for (unsigned long head = 0; head < driveinfo.heads(); head++) {
+				// Bail out if we've been asked to do so
+				if (bAbort) break;
 
 				// Loop over all possible sectors (TODO: 1 ==> format.sectors and determine if hardsectored)
 				for (unsigned long sector = 1; sector <= 1; sector++) {
+					// Bail out if we've been asked to do so
+					if (bAbort) break;
+
 					// Set disc drive outputs based on current CHS address
 
 					e = discferret_reg_poke(dh, DISCFERRET_R_DRIVE_CONTROL, drivescript->getDriveOutputs(drivetype, track, head, sector));
@@ -330,19 +348,30 @@ int main(int argc, char **argv)
 		}
 
 		// We're done. Seek back to track 0 (the Landing Zone)
-		e = discferret_seek_recalibrate(dh, driveinfo.tracks());
-		if (e != DISCFERRET_E_OK) {
-			cout << "Recal Retry...\n";
-			// Hmm. That didn't work. Wait for drive-ready before trying again
+		cout << "Moving heads back to track zero...";
+		do {
+			// Wait for drive ready -- TODO: timeout
 			long stat;
 			do {
 				stat = discferret_get_status(dh);
-			} while (!drivescript->isDriveReady(drivetype, stat));
+			} while ((stat >= 0) && (!drivescript->isDriveReady(drivetype, stat)));
 			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
 
-			// Try and recal again
+			// Initiate a Recalibrate
 			e = discferret_seek_recalibrate(dh, driveinfo.tracks());
-		}
+			if (e != DISCFERRET_E_OK) {
+				cout << "Recal Retry...\n";
+				// Hmm. That didn't work. Wait for drive-ready before trying again
+				// TODO: timeout
+				do {
+					stat = discferret_get_status(dh);
+				} while ((stat >= 0) && (!drivescript->isDriveReady(drivetype, stat)));
+				if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
+
+				// Try and recal again
+				e = discferret_seek_recalibrate(dh, driveinfo.tracks());
+			}
+		} while (false);
 
 		// Did the recal succeed?
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
