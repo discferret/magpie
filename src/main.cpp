@@ -88,9 +88,25 @@ void trap_break(bool act)
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+/**
+ * Wait for the drive to become ready, using the DriveScript to determine
+ * readiness.
+ *
+ * Reads the status of the disc drive, then passes the status value on to the
+ * Drive Script in order to determine if the drive is ready.
+ *
+ * @param	dh			DiscFerret device handle
+ * @param	drivescript	Pointer to the drive script in use
+ * @param	drivetype	String ID of the current disc drive type
+ * @param	timeout		Timeout in milliseconds
+ *
+ * @todo	Implement timeout
+ */
 void wait_drive_ready(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, string drivetype, int timeout = -1)
 {
-	// TODO: implement timeout
 	long stat;
 	do {
 		stat = discferret_get_status(dh);
@@ -98,6 +114,17 @@ void wait_drive_ready(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, s
 	if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
 }
 
+/**
+ * Perform a Head Recalibration: move the head to track zero.
+ *
+ * Moves the disc heads back to track zero, retrying where necessary.
+ *
+ * @param	dh			DiscFerret device handle
+ * @param	drivescript	Pointer to the drive script in use
+ * @param	driveinfo	Pointer to the DriveInfo object representing this drive.
+ * @param	drivetype	String ID of the current disc drive type
+ * @param	tries		Number of attempts to make, default 3.
+ */
 void do_recalibrate(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, CDriveInfo *driveinfo, string drivetype, int tries = 3)
 {
 	DISCFERRET_ERROR e;
