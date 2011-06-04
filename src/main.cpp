@@ -326,6 +326,24 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+
+		// We're done. Seek back to track 0 (the Landing Zone)
+		e = discferret_seek_recalibrate(dh, driveinfo.tracks());
+		if (e != DISCFERRET_E_OK) {
+			cout << "Recal Retry...\n";
+			// Hmm. That didn't work. Wait for drive-ready before trying again
+			long stat;
+			do {
+				stat = discferret_get_status(dh);
+			} while (!drivescript->isDriveReady(drivetype, stat));
+			if (stat < 0) throw EApplicationError("Error reading DiscFerret status register");
+
+			// Try and recal again
+			e = discferret_seek_recalibrate(dh, driveinfo.tracks());
+		}
+
+		// Did the recal succeed?
+		if (e != DISCFERRET_E_OK) throw EApplicationError("Error seeking to track zero");
 	} catch (EApplicationError &e) {
 		cerr << "Application error: " << e.what() << endl;
 		errcode = EXIT_FAILURE;
