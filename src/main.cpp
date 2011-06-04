@@ -140,6 +140,7 @@ void do_recalibrate(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, CDr
 		if (e != DISCFERRET_E_OK) {
 			cout << "Recalibration attempt " << (tries-i+1) << " failed with code " << e << "... Retrying...\n";
 		} else {
+			cout << "Recalibration attempt " << (tries-i+1) << " succeeded.\n";
 			break;
 		}
 
