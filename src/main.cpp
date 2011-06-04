@@ -145,7 +145,8 @@ int main(int argc, char **argv)
 		
 		e = discferret_init();
 		if (e != DISCFERRET_E_OK) {
-			stringstream s("Error initialising libdiscferret. Error code: ");
+			stringstream s;
+			s << "Error initialising libdiscferret. Error code: ";
 			s << e;
 			throw EApplicationError(s.str());
 		}
@@ -160,7 +161,8 @@ int main(int argc, char **argv)
 		}
 
 		if (e != DISCFERRET_E_OK) {
-			stringstream s("Error opening DiscFerret device. Is it connected and powered on? (error code ");
+			stringstream s;
+			s << "Error opening DiscFerret device. Is it connected and powered on? (error code ";
 			s << e << ")";
 			throw EApplicationError(s.str());
 		}
