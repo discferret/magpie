@@ -132,10 +132,11 @@ function getDriveOutputs(drivetype, track, head, sector)
 
 	-- Handle side selection
 	if head > drivespecs[drivetype]['heads'] then error("Head number " .. head .. " out of range.") end
-	if (head and 1) then pins = pins + PIN_SIDESEL end
-	if (head and 2) then pins = pins + PIN_DS1 end
-	if (head and 4) then pins = pins + PIN_DS2 end
-	if (head and 8) then pins = pins + PIN_DS3 end
+	if (bit.band(head, 1) ~= 0) then pins = pins + PIN_SIDESEL end
+	if (bit.band(head, 2) ~= 0) then pins = pins + PIN_DS1 end
+	if (bit.band(head, 4) ~= 0) then pins = pins + PIN_DS2 end
+	if (bit.band(head, 8) ~= 0) then pins = pins + PIN_DS3 end
+
 
 	return pins
 end
