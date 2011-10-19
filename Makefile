@@ -132,7 +132,7 @@ PLATFORM	?=	$(shell ./idplatform.sh)
 BUILD_TYPE	?=	debug
 
 # target executable
-TARGET		=	test
+TARGET		=	magpie
 
 # source files that produce object files
 SRC			=	LuaBitOp/bit.c main.cpp ScriptInterfaces.cpp ScriptManagers.cpp
