@@ -381,7 +381,7 @@ int main(int argc, char **argv)
 
 		// Prepare to save the data
 		ofstream of;
-		of.open(outfile);
+		of.open(outfile.c_str());
 
 		char x[5] = "DFER";
 		of.write(x, 4);

@@ -161,8 +161,8 @@ endif
 MAKE	=	make
 CC		=	gcc
 CXX		=	g++
-CFLAGS	=	-Wall -pedantic -std=gnu99 $(EXT_CFLAGS)
-CXXFLAGS=	-Wall -pedantic -std=gnu++0x $(EXT_CXXFLAGS)
+CFLAGS	=	-Wall -pedantic $(EXT_CFLAGS)
+CXXFLAGS=	-Wall -pedantic $(EXT_CXXFLAGS)
 LDFLAGS	=	$(EXT_LDFLAGS)
 RM		=	rm
 STRIP	=	strip
