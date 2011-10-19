@@ -1,6 +1,6 @@
 # Phil's multiplatform makefile template
 # With auto-incrementing build number and automatic version.h generation
-# Version 1.8, 2010-02-15
+# Version 1.11, 2010-02-15
 #
 # The latest version of this Makefile can be found at http://www.philpem.me.uk/
 #
@@ -64,10 +64,11 @@
 #               and the target is fed through strip to remove redundant
 #               data.
 #
-# The PLATFORM variable contains the current target platform. There are two
-# supported platforms:
+# The PLATFORM variable contains the current target platform. There are currently
+# three supported platforms:
 #   linux       GNU/Linux with GNU Compiler Collection
 #   win32       Windows 32-bit with MinGW
+#   osx         Mac OS X
 #
 # The EXTSRC variable is used to specify other files to build. It is typically
 # used to specify platform or build-type specific source files, e.g.
@@ -84,6 +85,20 @@
 #
 #
 # Change history:
+#   1.11- Add support for libraries which are registered with 'pkg-config'.
+#         Removed ENABLE_GTK, ENABLE_CAIRO and ENABLE_SDL -- these can now be
+#          specified as pkg-config managed libraries (gtk+-2.0, cairo and sdl,
+#          respectively).
+#   1.10- Add Mac OS X build support
+#         Add automatic build platform identification
+#         Bugfix -- if .buildnum doesn't exist, use '0' for the build number
+#         Add ability to override wxWidgets build type from the command line
+#           (OVERRIDE_WX_USE_RELEASE=1 forces use of wxWidgets release
+#           libraries, even in debug mode).
+#         Add GTK+ and Cairo library support
+#   1.9 - Bugfix -- if CFLAGS contained a forward-slash, sed would fall over.
+#         Also added SDL support and fixed the date/time formats. To use SDL,
+#         set ENABLE_SDL to "yes".
 #   1.8 - Now supports the use of the wxWidgets GUI framework. To turn
 #         this on, set ENABLE_WX to "yes".
 #   1.7 - Now creates a basic Hgignore file and directory keepers for the
@@ -93,6 +108,11 @@
 #   1.5 - Added support for Mercurial revision (changeset ID) display
 #         Fixed a few issues with Subversion support (svn: and version 0 would
 #         be displayed for exported code)
+#
+#
+# TODO list:
+#   - Add a 'make help' option which lists valid make targets, platforms etc.
+#   - Allow platform to be overridden (instead of using idplatform.sh)
 #
 
 ####
@@ -106,8 +126,8 @@ VER_MAJOR	= 0
 VER_MINOR	= 0
 VER_EXTRA	?= 
 
-# build platform: win32 or linux
-PLATFORM	?=	linux
+# build platform: win32, linux, osx
+PLATFORM	?=	$(shell ./idplatform.sh)
 # build type: release or debug
 BUILD_TYPE	?=	debug
 
@@ -122,29 +142,50 @@ SRC_TYPE	=	cpp
 
 # additional object files that don't necessarily include source
 EXT_OBJ		=
-# libraries to link in -- these will be specified as "-l" parameters, the -l
-# is prepended automatically
+
+# List of libraries to link in -- these will be specified as "-l" parameters,
+# the '-l' is prepended automatically
 LIB			=	discferret
-# libraries handled by pkg-config
+
+# List of libraries handled by pkg-config
 LIBPKGC		=	lua5.1 libusb-1.0
-# library paths -- where to search for the above libraries
+
+# Library paths -- where to search for the above libraries
 LIBPATH		=	./libdiscferret/output
-# include paths -- where to search for #include files (in addition to the
+
+# Include paths -- where to search for #include files (in addition to the
 # standard paths
-INCPATH		=	/usr/include/lua5.1 ./libdiscferret/include
-# garbage files that should be deleted on a 'make clean' or 'make tidy'
+INCPATH		=	./libdiscferret/include
+
+# Garbage files which should be deleted on a 'make clean' or 'make tidy'
 GARBAGE		=
 
 # extra dependencies - files that we don't necessarily know how to build, but
 # that are required for building the application; e.g. object files or
 # libraries in sub or parent directories
-EXTDEP		=	./libdiscferret/output/libdiscferret.so
+EXTDEP		=
 
 # Extra libraries
-# wxWidgets: set to "yes" to enable, anything else to disable
+# Set any of these variables to "yes" to enable, or anything else to disable
+# --- wxWidgets ---
 ENABLE_WX	=	no
 # wxWidgets: list of wxWidgets libraries to enable
+# Only valid if ENABLE_WX = yes
 WX_LIBS		=	std
+
+
+####
+# Tool setup
+####
+MAKE	:=	make
+CC		:=	gcc
+CXX		:=	g++
+CFLAGS	:=	-Wall -pedantic -std=gnu99 $(EXT_CFLAGS)
+CXXFLAGS:=	-Wall -pedantic -std=gnu++0x $(EXT_CXXFLAGS)
+LDFLAGS	:=	$(EXT_LDFLAGS)
+RM		:=	rm
+STRIP	:=	strip
+
 
 ####
 # Win32 target-specific settings
@@ -158,16 +199,13 @@ endif
 
 
 ####
-# Tool setup
+# OSX target-specific settings
 ####
-MAKE	=	make
-CC		=	gcc
-CXX		=	g++
-CFLAGS	=	-Wall -pedantic $(EXT_CFLAGS)
-CXXFLAGS=	-Wall -pedantic $(EXT_CXXFLAGS)
-LDFLAGS	=	$(EXT_LDFLAGS)
-RM		=	rm
-STRIP	=	strip
+ifeq ($(PLATFORM),osx)
+CFLAGS	:=	-Wall -pedantic $(EXT_CFLAGS)
+CXXFLAGS:=	-Wall -pedantic -Wno-long-long $(EXT_CXXFLAGS)
+endif
+
 
 ###############################################################################
 # You should not need to touch anything below here, unless you're adding a new
@@ -177,17 +215,16 @@ STRIP	=	strip
 ####
 # A quick sanity check on the platform type
 ####
-ifneq ($(PLATFORM),linux)
-ifneq ($(PLATFORM),win32)
-    $(error Platform '$(PLATFORM)' not supported. Supported platforms are: linux, win32)
-endif
+PERMITTED_PLATFORMS=linux win32 osx
+ifeq ($(filter $(PLATFORM),$(PERMITTED_PLATFORMS)),)
+    $(error Platform '$(PLATFORM)' is not supported. Supported platforms are: $(PERMITTED_PLATFORMS))
 endif
 
 ####
 # Version info generation
 ####
 # get the current build number
-VER_BUILDNUM	= $(shell cat .buildnum)
+VER_BUILDNUM	= $(shell cat .buildnum||echo 0)
 
 #### --- begin Subversion revision grabber ---
 # there are two ways to get the SVN revision - use svnversion, or use svn info
@@ -257,13 +294,19 @@ endif
 # wxWidgets support
 ####
 ifeq ($(ENABLE_WX),yes)
-	ifeq ($(BUILD_TYPE),debug)
+	ifneq ($(OVERRIDE_WX_USE_RELEASE),)
+		WX_BUILD_TYPE := release
+	else
+		WX_BUILD_TYPE := $(BUILD_TYPE)
+	endif
+
+	ifeq ($(WX_BUILD_TYPE),debug)
 		LIBLNK		+=	`wx-config --debug --libs $(WX_LIBS)`
 		CFLAGS		+=	`wx-config --debug --cflags $(WX_LIBS)`
 		CXXFLAGS	+=	`wx-config --debug --cxxflags $(WX_LIBS)`
 		CPPFLAGS	+=	`wx-config --debug --cppflags $(WX_LIBS)`
 	else
-		ifeq ($(BUILD_TYPE),release)
+		ifeq ($(WX_BUILD_TYPE),release)
 			LIBLNK		+=	`wx-config --libs $(WX_LIBS)`
 			CFLAGS		+=	`wx-config --cflags $(WX_LIBS)`
 			CPPFLAGS	+=	`wx-config --cppflags $(WX_LIBS)`
@@ -273,6 +316,7 @@ ifeq ($(ENABLE_WX),yes)
 		endif
 	endif
 endif
+
 
 ####
 # rules
@@ -286,12 +330,15 @@ DEPFILES =	$(addprefix dep/, $(addsuffix .d, $(basename $(SRC))) $(EXT_OBJ)) $(a
 
 # path commands
 LIBLNK	+=	$(addprefix -l, $(LIB))
+LIBPTH	+=	$(addprefix -L, $(LIBPATH))
+INCPTH	+=	$(addprefix -I, $(INCPATH))
+
+# Bring in libraries managed by pkg-config
 ifneq ($(strip $(LIBPKGC)),)
     LIBLNK += $(shell pkg-config --libs $(LIBPKGC))
     CFLAGS += $(shell pkg-config --cflags $(LIBPKGC))
+    CXXFLAGS += $(shell pkg-config --cflags $(LIBPKGC))
 endif
-LIBPTH	+=	$(addprefix -L, $(LIBPATH))
-INCPTH	+=	$(addprefix -I, $(INCPATH))
 
 CPPFLAGS +=	$(INCPTH)
 
@@ -311,20 +358,15 @@ all:	update-revision
 	@$(MAKE) versionheader
 	$(MAKE) $(TARGET)
 
-####
-# libdiscferret
-####
-./libdiscferret/output/libdiscferret.so:
-	$(MAKE) -C libdiscferret
-
 # increment the current build number
 NEWBUILD=$(shell expr $(VER_BUILDNUM) + 1)
 update-revision:
 	@echo $(NEWBUILD) > .buildnum
 
 versionheader:
-	@sed -e 's/@@date@@/$(shell LC_ALL=C date)/g'			\
-		 -e 's/@@time@@/$(shell LC_ALL=C date +%T)/g'		\
+	@sed -e 's/@@datetime@@/$(shell LC_ALL=C date +"%a %d-%b-%Y %T %Z")/g'		\
+		 -e 's/@@date@@/$(shell LC_ALL=C date +"%a %d-%b-%Y")/g'			\
+		 -e 's/@@time@@/$(shell LC_ALL=C date +"%T %Z")/g'		\
 		 -e 's/@@whoami@@/$(shell whoami)/g'				\
 		 -e 's/@@hostname@@/$(shell hostname)/g'			\
 		 -e 's|@@compiler@@|$(shell $(CC) $(CFLAGS) -v 2>&1 | tail -n 1 | sed -e "s;|;/;")|g'	\
@@ -337,7 +379,7 @@ versionheader:
 		 -e 's/@@vcsrev@@/$(VER_VCSREV)/g'					\
 		 -e 's/@@vcsstr@@/$(VER_VCSSTR)/g'					\
 		 -e 's/@@fullverstr@@/$(VER_FULLSTR)/g'				\
-		 -e 's|@@cflags@@|$(CFLAGS)|g'						\
+		 -e 's#@@cflags@@#$(CFLAGS)#g'						\
 		 < src/version.h.in > src/version.h
 
 # version.h creation stuff based on code from the Xen makefile
@@ -358,22 +400,23 @@ init:
 	@echo 'dep/*.d' >> .hgignore
 	@echo '*~' >> .hgignore
 	@echo '.*.sw?' >> .hgignore
-	@echo '#define VER_COMPILE_DATE	"@@date@@"'				> src/version.h.in
-	@echo '#define VER_COMPILE_TIME	"@@time@@"'				>> src/version.h.in
-	@echo '#define VER_COMPILE_BY		"@@whoami@@"'		>> src/version.h.in
-	@echo '#define VER_COMPILE_HOST	"@@hostname@@"'			>> src/version.h.in
-	@echo '#define VER_COMPILER		"@@compiler@@"'			>> src/version.h.in
-	@echo '#define VER_BUILD_TYPE		"@@buildtype@@"'	>> src/version.h.in
-	@echo '#define VER_CFLAGS			"@@cflags@@"'		>> src/version.h.in
-	@echo ''												>> src/version.h.in
-	@echo '#define VER_MAJOR			@@majorver@@'		>> src/version.h.in
-	@echo '#define VER_MINOR			@@minorver@@'		>> src/version.h.in
-	@echo '#define VER_BUILDNUM		@@buildnum@@'			>> src/version.h.in
-	@echo '#define VER_EXTRA			"@@extraver@@"'		>> src/version.h.in
-	@echo '#define VER_VCSREV			"@@vcsstr@@"'		>> src/version.h.in
-	@echo ''												>> src/version.h.in
-	@echo '#define VER_FULLSTR			"@@fullverstr@@"'	>> src/version.h.in
-	@echo ''												>> src/version.h.in
+	@echo '#define VER_COMPILE_DATETIME	"@@datetime@@"'			> src/version.h.in
+	@echo '#define VER_COMPILE_DATE		"@@date@@"'				>> src/version.h.in
+	@echo '#define VER_COMPILE_TIME		"@@time@@"'				>> src/version.h.in
+	@echo '#define VER_COMPILE_BY			"@@whoami@@"'		>> src/version.h.in
+	@echo '#define VER_COMPILE_HOST		"@@hostname@@"'			>> src/version.h.in
+	@echo '#define VER_COMPILER			"@@compiler@@"'			>> src/version.h.in
+	@echo '#define VER_BUILD_TYPE			"@@buildtype@@"'	>> src/version.h.in
+	@echo '#define VER_CFLAGS				"@@cflags@@"'		>> src/version.h.in
+	@echo ''													>> src/version.h.in
+	@echo '#define VER_MAJOR				@@majorver@@'		>> src/version.h.in
+	@echo '#define VER_MINOR				@@minorver@@'		>> src/version.h.in
+	@echo '#define VER_BUILDNUM			@@buildnum@@'			>> src/version.h.in
+	@echo '#define VER_EXTRA				"@@extraver@@"'		>> src/version.h.in
+	@echo '#define VER_VCSREV				"@@vcsstr@@"'		>> src/version.h.in
+	@echo ''													>> src/version.h.in
+	@echo '#define VER_FULLSTR				"@@fullverstr@@"'	>> src/version.h.in
+	@echo ''													>> src/version.h.in
 	@echo Build system initialised
 
 # remove the dependency files
