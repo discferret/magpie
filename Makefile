@@ -124,7 +124,9 @@ SRC_TYPE	=	cpp
 EXT_OBJ		=
 # libraries to link in -- these will be specified as "-l" parameters, the -l
 # is prepended automatically
-LIB			=	lua5.1 discferret usb-1.0
+LIB			=	discferret
+# libraries handled by pkg-config
+LIBPKGC		=	lua5.1 libusb-1.0
 # library paths -- where to search for the above libraries
 LIBPATH		=	./libdiscferret/output
 # include paths -- where to search for #include files (in addition to the
@@ -284,6 +286,10 @@ DEPFILES =	$(addprefix dep/, $(addsuffix .d, $(basename $(SRC))) $(EXT_OBJ)) $(a
 
 # path commands
 LIBLNK	+=	$(addprefix -l, $(LIB))
+ifneq ($(strip $(LIBPKGC)),)
+    LIBLNK += $(shell pkg-config --libs $(LIBPKGC))
+    CFLAGS += $(shell pkg-config --cflags $(LIBPKGC))
+endif
 LIBPTH	+=	$(addprefix -L, $(LIBPATH))
 INCPTH	+=	$(addprefix -I, $(INCPATH))
 
@@ -331,7 +337,7 @@ versionheader:
 		 -e 's/@@vcsrev@@/$(VER_VCSREV)/g'					\
 		 -e 's/@@vcsstr@@/$(VER_VCSSTR)/g'					\
 		 -e 's/@@fullverstr@@/$(VER_FULLSTR)/g'				\
-		 -e 's/@@cflags@@/$(CFLAGS)/g'						\
+		 -e 's|@@cflags@@|$(CFLAGS)|g'						\
 		 < src/version.h.in > src/version.h
 
 # version.h creation stuff based on code from the Xen makefile
