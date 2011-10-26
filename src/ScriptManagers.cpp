@@ -1,6 +1,7 @@
 // TODO: eliminate cout / cerr and need for iostream
 #include <iostream>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "Exceptions.hpp"
 #include "ScriptManagers.hpp"
@@ -11,6 +12,7 @@ void GenericScriptManager::scandir(const std::string path, int recursionLimit)
 {
 	DIR *dp;
 	struct dirent *dt;
+	struct stat s;
 
 	// Prevent infinite recursion
 	if (recursionLimit == 0) return;
@@ -23,12 +25,14 @@ void GenericScriptManager::scandir(const std::string path, int recursionLimit)
 		// add filename to get fully qualified path
 		filename += dt->d_name;
 
+		// the following is copied right from an example to fix the lack of DT_DIR/DT_REG on mingw
+		stat(filename.c_str(), &s);
 		// What is this directory entry?
-		if (dt->d_type == DT_DIR) {
+		if (s.st_mode & S_IFDIR) {
 			// it's a subdirectory... scan it too.
 			cout << "traversing directory: " << filename <<endl;
 			this->scandir(filename, recursionLimit - 1);
-		} else if (dt->d_type == DT_REG) {
+		} else if (s.st_mode & S_IFREG) {
 			// skip files which aren't lua scripts
 			if (filename.substr(filename.length()-4, 4).compare(".lua") != 0) continue;
 			// didn't skip, so it must be a lua script

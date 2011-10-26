@@ -17,12 +17,21 @@
 #include <fstream>
 #include <algorithm>
 #include <getopt.h>
-#ifdef _WIN32
+
 // Windows
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
+#ifdef _WIN32
+  // Cygwin GCC allegedly only defines _WIN32 if it's being used to build
+  // non-Cygwin binaries, but it never hurts to be sure.
+#  ifndef __CYGWIN__
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
+
+     // Windows does not provide a *nix-compatible sleep(), but the Sleep()
+     // WinAPI function is close enough for our purposes.
+#    define sleep(n) Sleep(1000 * n)
+#  endif
 #else
-// UNIX
+// *nix -- Linux, OS X, BSD and similar
 # include <signal.h>
 #endif
 
