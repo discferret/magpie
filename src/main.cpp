@@ -381,7 +381,7 @@ int main(int argc, char **argv)
 
 		// Prepare to save the data
 		ofstream of;
-		of.open(outfile.c_str());
+		of.open(outfile.c_str(), ios::out | ios::binary);
 
 		char x[5] = "DFER";
 		of.write(x, 4);
