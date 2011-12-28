@@ -200,8 +200,8 @@ WX_LIBS		=	std
 MAKE	:=	make
 CC		:=	gcc
 CXX		:=	g++
-CFLAGS	:=	-Wall -pedantic -std=gnu99 $(EXT_CFLAGS)
-CXXFLAGS:=	-Wall -pedantic -std=gnu++0x $(EXT_CXXFLAGS)
+CFLAGS	:=	-Wall $(EXT_CFLAGS)
+CXXFLAGS:=	-Wall $(EXT_CXXFLAGS)
 LDFLAGS	:=	$(EXT_LDFLAGS)
 RM		:=	rm
 STRIP	:=	strip
@@ -222,8 +222,7 @@ endif
 # OSX target-specific settings
 ####
 ifeq ($(PLATFORM),osx)
-CFLAGS	:=	-Wall -pedantic $(EXT_CFLAGS)
-CXXFLAGS:=	-Wall -pedantic -Wno-long-long $(EXT_CXXFLAGS)
+#CXXFLAGS:=	-Wall -Wno-long-long $(EXT_CXXFLAGS)
 endif
 
 
