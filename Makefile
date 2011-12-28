@@ -147,8 +147,28 @@ EXT_OBJ		=
 # the '-l' is prepended automatically
 LIB			=	discferret
 
+# Figure out what pkg-config calls Lua on this system
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua && echo lua)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua-5.1 && echo lua-5.1)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua5.1 && echo lua5.1)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua51 && echo lua51)
+endif
+ifeq ($(LUA_LIB_NAME),)
+$(error Unable to determine the pkg-config ID for Lua. Please specify this \
+	manually with 'LUA_LIB_NAME=<name> make' -- you can find it out with \
+	the command 'pkg-config --list-all | grep lua'. Please also check that \
+	you have Lua version 5.1 or later installed.)
+endif
+
 # List of libraries handled by pkg-config
-LIBPKGC		=	lua5.1 libusb-1.0
+LIBPKGC		=	$(LUA_LIB_NAME) libusb-1.0
 
 # Library paths -- where to search for the above libraries
 LIBPATH		=	./libdiscferret/output
