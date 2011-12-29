@@ -147,8 +147,28 @@ EXT_OBJ		=
 # the '-l' is prepended automatically
 LIB			=	discferret
 
+# Figure out what pkg-config calls Lua on this system
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua && echo lua)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua-5.1 && echo lua-5.1)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua5.1 && echo lua5.1)
+endif
+ifeq ($(LUA_LIB_NAME),)
+LUA_LIB_NAME=$(shell pkg-config --exists lua51 && echo lua51)
+endif
+ifeq ($(LUA_LIB_NAME),)
+$(error Unable to determine the pkg-config ID for Lua. Please specify this \
+	manually with 'LUA_LIB_NAME=<name> make' -- you can find it out with \
+	the command 'pkg-config --list-all | grep lua'. Please also check that \
+	you have Lua version 5.1 or later installed.)
+endif
+
 # List of libraries handled by pkg-config
-LIBPKGC		=	lua5.1 libusb-1.0
+LIBPKGC		=	$(LUA_LIB_NAME) libusb-1.0
 
 # Library paths -- where to search for the above libraries
 LIBPATH		=	./libdiscferret/output
@@ -180,8 +200,8 @@ WX_LIBS		=	std
 MAKE	:=	make
 CC		:=	gcc
 CXX		:=	g++
-CFLAGS	:=	-Wall -pedantic -std=gnu99 $(EXT_CFLAGS)
-CXXFLAGS:=	-Wall -pedantic -std=gnu++0x $(EXT_CXXFLAGS)
+CFLAGS	:=	-Wall $(EXT_CFLAGS)
+CXXFLAGS:=	-Wall $(EXT_CXXFLAGS)
 LDFLAGS	:=	$(EXT_LDFLAGS)
 RM		:=	rm
 STRIP	:=	strip
@@ -202,8 +222,7 @@ endif
 # OSX target-specific settings
 ####
 ifeq ($(PLATFORM),osx)
-CFLAGS	:=	-Wall -pedantic $(EXT_CFLAGS)
-CXXFLAGS:=	-Wall -pedantic -Wno-long-long $(EXT_CXXFLAGS)
+#CXXFLAGS:=	-Wall -Wno-long-long $(EXT_CXXFLAGS)
 endif
 
 
