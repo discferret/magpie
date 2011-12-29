@@ -224,7 +224,7 @@ endif
 # Version info generation
 ####
 # get the current build number
-VER_BUILDNUM	= $(shell cat .buildnum||echo 0)
+VER_BUILDNUM	= $(shell cat .buildnum 2>/dev/null||echo 0)
 
 #### --- begin Subversion revision grabber ---
 # there are two ways to get the SVN revision - use svnversion, or use svn info
@@ -421,15 +421,15 @@ init:
 
 # remove the dependency files
 cleandep:
-	-rm $(DEPFILES)
+	-rm -f $(DEPFILES)
 
 # remove the dependency files and any target or intermediate build files
 clean:	cleandep clean-versioninfo
-	-rm $(OBJ) $(TARGET) $(GARBAGE)
+	-rm -f $(OBJ) $(TARGET) $(GARBAGE)
 
-# remove any dependency or intermediate build files
+# remove any dependency or intermediate build files, but not the final output
 tidy:	cleandep clean-versioninfo
-	-rm $(OBJ) $(GARBAGE)
+	-rm -f $(OBJ) $(GARBAGE)
 
 #################################
 
