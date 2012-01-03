@@ -185,6 +185,7 @@ void usage(char *appname)
 int main(int argc, char **argv)
 {
 	string drivetype, formattype, serialnum, outfile;
+	int iClockRate = DISCFERRET_ACQ_RATE_100MHZ;
 
 	while (1) {
 		// Getopt option table
@@ -196,9 +197,10 @@ int main(int argc, char **argv)
 			{"format",		required_argument,	0,				'f'},
 			{"serial",		required_argument,	0,				's'},
 			{"outfile",		required_argument,	0,				'o'},
+			{"clock",		optional_argument,	0,				'c'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
-		static const char *opts_short = "d:f:o:";
+		static const char *opts_short = "hd:f:s:o:c:";
 
 		// getopt stores the option index here
 		int idx = 0;
@@ -233,6 +235,23 @@ int main(int argc, char **argv)
 			case 'o':
 				// output filename
 				outfile = optarg;
+				break;
+
+			case 'c':
+				// set clock rate
+				switch (atoi(optarg)) {
+					case 25:
+						iClockRate = DISCFERRET_ACQ_RATE_25MHZ; break;
+					case 50:
+						iClockRate = DISCFERRET_ACQ_RATE_50MHZ; break;
+					case 100:
+						iClockRate = DISCFERRET_ACQ_RATE_100MHZ; break;
+					default:
+						cerr << "Invalid clock rate specified." << endl;
+						usage(argv[0]);
+						exit(EXIT_FAILURE);
+						break;
+				}
 				break;
 
 			case '?':
@@ -398,6 +417,17 @@ int main(int argc, char **argv)
 		// Set up the Ctrl-C handler
 		trap_break(true);
 
+		cout << "Acquiring data from disc at ";
+		switch (iClockRate) {
+			case DISCFERRET_ACQ_RATE_25MHZ:
+				cout << "25"; break;
+			case DISCFERRET_ACQ_RATE_50MHZ:
+				cout << "50"; break;
+			case DISCFERRET_ACQ_RATE_100MHZ:
+				cout << "100"; break;
+		}
+		cout << "MHz" << endl;
+
 		// Loop over all possible tracks
 		for (unsigned long track = 0; track < driveinfo.tracks(); track++) {
 			// Bail out if we've been asked to do so
@@ -426,12 +456,18 @@ int main(int argc, char **argv)
 					// Set acq start event -- TODO: get this from the format spec
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event");
-					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 1);		// TODO: can make things go faster by setting this to 0 (first-event)
+					// This used to be set to 1 (trigger on second index pulse), which is insanely pessimistic. The DiscFerret logic
+					// will ONLY trigger on an index edge, NOT index simply being active when an acquisition starts.
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event count");
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event");
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_NUM, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event count");
+
+					// Set capture rate
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_CLKSEL, iClockRate);
+					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq clock rate");
 
 					// Set RAM pointer to zero
 					e = discferret_ram_addr_set(dh, 0);
