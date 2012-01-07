@@ -9,6 +9,7 @@
 
 // C++ stdlib
 #include <cstdio>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <map>
@@ -411,7 +412,15 @@ int main(int argc, char **argv)
 		ofstream of;
 		of.open(outfile.c_str(), ios::out | ios::binary);
 
-		char x[5] = "DFER";
+		char x[5];
+		if (devinfo.microcode_ver <= 0x0026) {
+			strcpy(x, "DFER");
+			cerr << "WARNING: Your DiscFerret is running old microcode and will not produce" << endl
+				 << "valid disc images. Update your copy of libdiscferret!" << endl;
+		} else {
+			// New bitstream format
+			strcpy(x, "DFE2");
+		}
 		of.write(x, 4);
 
 		// Set up the Ctrl-C handler
