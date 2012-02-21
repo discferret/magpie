@@ -170,13 +170,15 @@ void usage(char *appname)
 	cout
 		<< "Usage:" << endl
 		<< "   " << appname << " [--verbose] --drive drivetype --format formattype" <<endl
-		<< "      [--serial serialnum]" << endl
+		<< "      [--serial serialnum] [--clock clockrate] [--multi numreads]" << endl
 		<< endl
 		<< "Where:" << endl
 		<< "   drivetype   Type of disc drive attached to the DiscFerret" << endl
 		<< "   formattype  Type of the disc inserted in the drive" << endl
 		<< "   serialnum   Serial number of the DiscFerret to connect to. If this is" << endl
-		<< "               not specified, then the first DiscFerret will be used." << endl;
+		<< "               not specified, then the first DiscFerret will be used." << endl
+		<< "   clockrate   Clock rate in MHz. Either 25, 50 or 100 (default is 100)." << endl
+		<< "   numreads    MultiRead mode -- number of reads per cycle (default is 1)." << endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -187,6 +189,7 @@ int main(int argc, char **argv)
 {
 	string drivetype, formattype, serialnum, outfile;
 	int iClockRate = DISCFERRET_ACQ_RATE_100MHZ;
+	int numReads = 1;
 
 	while (1) {
 		// Getopt option table
@@ -199,6 +202,7 @@ int main(int argc, char **argv)
 			{"serial",		required_argument,	0,				's'},
 			{"outfile",		required_argument,	0,				'o'},
 			{"clock",		optional_argument,	0,				'c'},
+			{"multi",		optional_argument,	0,				'm'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
 		static const char *opts_short = "hd:f:s:o:c:";
@@ -252,6 +256,15 @@ int main(int argc, char **argv)
 						usage(argv[0]);
 						exit(EXIT_FAILURE);
 						break;
+				}
+				break;
+
+			case 'm':
+				numReads = atoi(optarg);
+				if ((numReads < 1) || (numReads > 16)) {
+					cerr << "Invalid number of reads (min 1, max 16)" << endl;
+					usage(argv[0]);
+					exit(EXIT_FAILURE);
 				}
 				break;
 
@@ -471,7 +484,7 @@ int main(int argc, char **argv)
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event count");
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event");
-					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_NUM, 0);
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_NUM, numReads-1);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event count");
 
 					// Set capture rate
