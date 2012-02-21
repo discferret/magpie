@@ -201,8 +201,8 @@ int main(int argc, char **argv)
 			{"format",		required_argument,	0,				'f'},
 			{"serial",		required_argument,	0,				's'},
 			{"outfile",		required_argument,	0,				'o'},
-			{"clock",		optional_argument,	0,				'c'},
-			{"multi",		optional_argument,	0,				'm'},
+			{"clock",		required_argument,	0,				'c'},
+			{"multi",		required_argument,	0,				'm'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
 		static const char *opts_short = "hd:f:s:o:c:";
