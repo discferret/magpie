@@ -341,7 +341,7 @@ int main(int argc, char **argv)
 
 		// Upload the DiscFerret microcode
 		cout << "Loading microcode..." << endl;
-		e = discferret_fpga_load_rbf(dh, discferret_microcode, discferret_microcode_length);
+		e = discferret_fpga_load_default(dh);
 		if (e != DISCFERRET_E_OK) throw EApplicationError("Error loading DiscFerret microcode.");
 		cout << "Microcode loaded successfully." << endl;
 
