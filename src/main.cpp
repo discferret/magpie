@@ -458,9 +458,6 @@ int main(int argc, char **argv)
 			// Seek to the required track
 			discferret_seek_absolute(dh, track * trackstep);
 
-			// Wait for drive to become ready
-			wait_drive_ready(dh, drivescript, drivetype);
-
 			// Loop over all possible heads
 			for (unsigned long head = 0; head < driveinfo.heads(); head++) {
 				// Bail out if we've been asked to do so
@@ -494,6 +491,9 @@ int main(int argc, char **argv)
 					// Set RAM pointer to zero
 					e = discferret_ram_addr_set(dh, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address");
+
+					// Wait for drive to become ready
+					wait_drive_ready(dh, drivescript, drivetype);
 
 					// Start the acquisition
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQCON, DISCFERRET_ACQCON_START);
