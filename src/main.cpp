@@ -171,6 +171,7 @@ void usage(char *appname)
 		<< "Usage:" << endl
 		<< "   " << appname << " [--verbose] --drive drivetype --format formattype" <<endl
 		<< "      [--serial serialnum] [--clock clockrate] [--multi numreads]" << endl
+		<< "      [--waitidx numidx]" << endl
 		<< endl
 		<< "Where:" << endl
 		<< "   drivetype   Type of disc drive attached to the DiscFerret" << endl
@@ -178,7 +179,9 @@ void usage(char *appname)
 		<< "   serialnum   Serial number of the DiscFerret to connect to. If this is" << endl
 		<< "               not specified, then the first DiscFerret will be used." << endl
 		<< "   clockrate   Clock rate in MHz. Either 25, 50 or 100 (default is 100)." << endl
-		<< "   numreads    MultiRead mode -- number of reads per cycle (default is 1)." << endl;
+		<< "   numreads    MultiRead mode -- number of reads per cycle (default is 1)." << endl
+		<< "   numidx      Number of index pulses to wait before attempting to read a" << endl
+		<< "               track (default is 0, read on active edge of first index pulse)." << endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -189,6 +192,7 @@ int main(int argc, char **argv)
 {
 	string drivetype, formattype, serialnum, outfile;
 	int iClockRate = DISCFERRET_ACQ_RATE_100MHZ;
+	int waitidx = 0;
 	int numReads = 1;
 
 	while (1) {
@@ -203,9 +207,10 @@ int main(int argc, char **argv)
 			{"outfile",		required_argument,	0,				'o'},
 			{"clock",		required_argument,	0,				'c'},
 			{"multi",		required_argument,	0,				'm'},
+			{"waitidx",		required_argument,	0,				'w'},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
-		static const char *opts_short = "hd:f:s:o:c:";
+		static const char *opts_short = "hd:f:s:o:c:m:w:";
 
 		// getopt stores the option index here
 		int idx = 0;
@@ -263,6 +268,15 @@ int main(int argc, char **argv)
 				numReads = atoi(optarg);
 				if ((numReads < 1) || (numReads > 16)) {
 					cerr << "Invalid number of reads (min 1, max 16)" << endl;
+					usage(argv[0]);
+					exit(EXIT_FAILURE);
+				}
+				break;
+
+			case 'w':
+				waitidx = atoi(optarg);
+				if ((waitidx < 0) || (waitidx > 15)) {
+					cerr << "Invalid waitidx value (min 0, max 15)" << endl;
 					usage(argv[0]);
 					exit(EXIT_FAILURE);
 				}
@@ -477,7 +491,7 @@ int main(int argc, char **argv)
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event");
 					// This used to be set to 1 (trigger on second index pulse), which is insanely pessimistic. The DiscFerret logic
 					// will ONLY trigger on an index edge, NOT index simply being active when an acquisition starts.
-					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, 0);
+					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_START_NUM, waitidx);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq start event count");
 					e = discferret_reg_poke(dh, DISCFERRET_R_ACQ_STOP_EVT, DISCFERRET_ACQ_EVENT_INDEX);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting acq stop event");
