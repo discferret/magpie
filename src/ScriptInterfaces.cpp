@@ -182,8 +182,8 @@ CDriveInfo CDriveScript::GetDriveInfo(const std::string drivetype)
 			// [float] Step rate, milliseconds
 			double x = lua_tonumber(L, -1);
 			steprate = x * 1000;	// convert from milliseconds to microseconds
-			if ((steprate < 250) || (steprate > (255*250)))
-				throw EDriveSpecParse("Value of 'steprate' parameter must be between 0.25 and 63.75.", filename, lua_tostring(L, -4));
+			if (steprate < 0)
+				throw EDriveSpecParse("Value of 'steprate' parameter must be greater than zero.", filename, lua_tostring(L, -4));
 		} else if (key.compare("tracks") == 0) {
 			// [integer] Number of tracks
 			tracks = lua_tointeger(L, -1);
