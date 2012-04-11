@@ -18,6 +18,7 @@
 #include <fstream>
 #include <algorithm>
 #include <getopt.h>
+#include <unistd.h> // FIXME: remove when the usleep head settle delay is removed
 
 // Windows
 #ifdef _WIN32
@@ -426,13 +427,18 @@ int main(int argc, char **argv)
 		// Recalibrate to zero
 		do_recalibrate(dh, drivescript, &driveinfo, drivetype);
 
-		// Measure and display disc rotation speed
-		double freq;
-		// Measure three times, take the most recent measurement
-		e = discferret_get_index_frequency(dh, true, &freq);
-		e = discferret_get_index_frequency(dh, true, &freq);
-		e = discferret_get_index_frequency(dh, true, &freq);
-		cout << "Measured disc rotation speed: " << freq << " RPM" << endl;
+		if (!bNoIndex) {
+			// Measure and display disc rotation speed
+			double freq;
+			// Measure three times, take the most recent measurement
+			e = discferret_get_index_frequency(dh, true, &freq);
+			e = discferret_get_index_frequency(dh, true, &freq);
+			e = discferret_get_index_frequency(dh, true, &freq);
+			cout << "Measured disc rotation speed: " << freq << " RPM" << endl;
+		} else {
+			// Index sense disabled. Don't even try and read the index frequency.
+			cout << "Index sense disabled. Disc rotation speed will not be measured." << endl;
+		}
 
 		// 512K timing data buffer (the DiscFerret has 512K of RAM)
 		unsigned char *buffer = new unsigned char[512*1024];
@@ -508,6 +514,11 @@ int main(int argc, char **argv)
 					e = discferret_ram_addr_set(dh, 0);
 					if (e != DISCFERRET_E_OK) throw EApplicationError("Error setting RAM address");
 
+					if (bNoIndex) {
+						// FIXME: hackhackhack -- head settling delay.
+						usleep(500000);
+					}
+
 					// Wait for drive to become ready
 					wait_drive_ready(dh, drivescript, drivetype);
 
@@ -526,6 +537,10 @@ int main(int argc, char **argv)
 
 					// TODO: offload data ==> save to file!
 					long nbytes = discferret_ram_addr_get(dh);
+					if (discferret_get_status(dh) & DISCFERRET_STATUS_RAM_FULL) {
+						cout << "*** WARNING: RAM Full when reading -- the RAM buffer may have overflowed!" << endl;
+						nbytes = 524288;
+					}
 					cout << "CHS " << track << ":" << head << ":" << sector << ", " << nbytes << " bytes of acq data" << endl;
 					if (nbytes < 1) throw EApplicationError("Invalid byte count!");
 					e = discferret_ram_addr_set(dh, 0);
