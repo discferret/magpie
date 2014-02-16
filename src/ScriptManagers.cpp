@@ -18,6 +18,7 @@ void GenericScriptManager::scandir(const std::string path, int recursionLimit)
 	if (recursionLimit == 0) return;
 
 	dp = opendir(path.c_str());
+	if (dp == NULL) return;
 	while ((dt = readdir(dp)) != NULL) {
 		string filename = path + "/";
 		// skip hidden files
