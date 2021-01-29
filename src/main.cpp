@@ -164,25 +164,90 @@ void do_recalibrate(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, CDr
 	wait_drive_ready(dh, drivescript, drivetype);
 }
 
+
+/**
+ * Perform a Scrub: clean the drive heads
+ *
+ * Moves the disc heads back to track zero, retrying where necessary.
+ *
+ * @param	dh			DiscFerret device handle
+ * @param	drivescript	Pointer to the drive script in use
+ * @param	driveinfo	Pointer to the DriveInfo object representing this drive.
+ * @param	drivetype	String ID of the current disc drive type
+ * @param	tries		Number of attempts to make, default 3.
+ */
+void do_scrub(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, CDriveInfo *driveinfo, string drivetype, unsigned int passes = 3)
+{
+	DISCFERRET_ERROR e;
+
+	const unsigned int CYLINDERS = driveinfo->tracks();
+
+	int step = (CYLINDERS < 16) ? 2 : (CYLINDERS / 8);
+	for (unsigned int pass = 0; pass < passes; pass++) {
+		printf("Cleaning drive heads -- pass %d of %d...\n", pass+1, passes);
+
+		int a;
+		for (unsigned int cyl=0; cyl < CYLINDERS; cyl += step) {
+			a = (cyl + (step - 1));
+			cout << a << " ";
+			cout.flush();
+			if (cyl > CYLINDERS) {
+				discferret_seek_absolute(dh, CYLINDERS-1);
+			} else {
+				discferret_seek_absolute(dh, cyl);
+			}
+			usleep(100000);		// 100ms delay
+
+			a = cyl;
+			cout << a << " ";
+			if (cyl > CYLINDERS) {
+				discferret_seek_absolute(dh, CYLINDERS-1);
+			} else {
+				discferret_seek_absolute(dh, cyl);
+			}
+			usleep(100000);		// 100ms delay
+		}
+		cout << endl;
+	}
+
+	// Initiate a Recalibrate (seek to zero)
+	e = discferret_seek_recalibrate(dh, driveinfo->tracks());
+
+	if (e != DISCFERRET_E_OK) {
+		cout << "Recalibration failed with code " << e << endl;
+	} else {
+		cout << "Recalibration succeeded.\n";
+	}
+
+	// Wait for drive ready -- TODO: timeout
+	wait_drive_ready(dh, drivescript, drivetype);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 void usage(char *appname)
 {
 	cout
 		<< "Usage:" << endl
-		<< "   " << appname << " [--verbose] --drive drivetype --format formattype" <<endl
+		<< "   " << appname << " [--verbose]" << endl
+		<< "      --drive drivetype --format formattype --outfile outputfile" << endl
 		<< "      [--serial serialnum] [--clock clockrate] [--multi numreads]" << endl
-		<< "      [--waitidx numidx] [--noindex]" << endl
+		<< "      [--waitidx numidx] [--noindex] [--scrub]" << endl
 		<< endl
 		<< "Where:" << endl
 		<< "   drivetype   Type of disc drive attached to the DiscFerret" << endl
+		<< "   outputfile  Output filename" << endl
 		<< "   formattype  Type of the disc inserted in the drive" << endl
 		<< "   serialnum   Serial number of the DiscFerret to connect to. If this is" << endl
 		<< "               not specified, then the first DiscFerret will be used." << endl
 		<< "   clockrate   Clock rate in MHz. Either 25, 50 or 100 (default is 100)." << endl
 		<< "   numreads    MultiRead mode -- number of reads per cycle (default is 1)." << endl
 		<< "   numidx      Number of index pulses to wait before attempting to read a" << endl
-		<< "               track (default is 0, read on active edge of first index pulse)." << endl;
+		<< "               track (default is 0, read on active edge of first index pulse)." << endl
+		<< endl
+		<< "If '--scrub' is specified, the disc drive heads will be cleaned. Insert a" << endl
+		<< "cleaning disc before running this command. In this mode, the output filename" << endl
+		<< "is optional." << endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -195,6 +260,7 @@ int main(int argc, char **argv)
 	int iClockRate = DISCFERRET_ACQ_RATE_100MHZ;
 	int waitidx = 0;
 	int bNoIndex = false;
+	int bScrub = false;
 	int numReads = 1;
 
 	while (1) {
@@ -210,6 +276,7 @@ int main(int argc, char **argv)
 			{"clock",		required_argument,	0,				'c'},
 			{"multi",		required_argument,	0,				'm'},
 			{"waitidx",		required_argument,	0,				'w'},
+			{"scrub",		no_argument,		&bScrub,		true},
 			{"noindex",		no_argument,		&bNoIndex,		true},
 			{0, 0, 0, 0}	// end sentinel / terminator
 		};
@@ -319,7 +386,7 @@ int main(int argc, char **argv)
 	}
 
 	// Make sure the user specified an output file
-	if (outfile == "") {
+	if (!bScrub && outfile == "") {
 		cerr << "Error: output filename not specified." << endl;
 		return EXIT_FAILURE;
 	}
@@ -438,6 +505,12 @@ int main(int argc, char **argv)
 		} else {
 			// Index sense disabled. Don't even try and read the index frequency.
 			cout << "Index sense disabled. Disc rotation speed will not be measured." << endl;
+		}
+
+		// Handle a request to clean the heads
+		if (bScrub) {
+			do_scrub(dh, drivescript, &driveinfo, drivetype);
+			throw 0;
 		}
 
 		// 512K timing data buffer (the DiscFerret has 512K of RAM)
@@ -585,6 +658,8 @@ int main(int argc, char **argv)
 	} catch (ECommunicationError &e) {
 		cerr << e.what() << endl;
 		errcode = EXIT_FAILURE;
+	} catch (int &e) {
+		// Thrown int means early-exit requested by scrub()
 	}
 
 	// Deselect the drive
