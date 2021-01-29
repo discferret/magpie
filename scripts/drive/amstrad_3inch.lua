@@ -2,7 +2,7 @@
 #######################
 # DiscFerret Disc Drive Specification File
 #
-# PC 3.5in Drives A and B, twisted cable or CBL-01A cable kit
+# Amstrad EME23x 3-inch disc drives with custom cable
 #######################
 ]]
 
@@ -19,7 +19,7 @@ drivespecs = {
 		-- Spin-up time in milliseconds
 		spinup				= 1000,
 		-- Number of physical tracks
-		tracks				= 84,
+		tracks				= 81,
 		-- Number of tracks per inch
 		tpi					= 160,		-- TODO: FIXME! This is wrong.
 		-- Number of physical heads
@@ -34,7 +34,7 @@ drivespecs = {
 		-- Spin-up time in milliseconds
 		spinup				= 1000,
 		-- Number of physical tracks
-		tracks				= 84,
+		tracks				= 81,
 		-- Number of tracks per inch
 		tpi					= 160,		-- TODO: FIXME! This is a guess, based on the TPI of 3.5in floppies. = (135*3.5)/3.0
 		-- Number of physical heads

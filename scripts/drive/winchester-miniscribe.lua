@@ -3,6 +3,8 @@
 # DiscFerret Disc Drive Specification File
 #
 # Winchester (ST-506/ST-412) type disc drives with ST-506 adapter
+#
+# MiniScribe drives
 #######################
 ]]
 

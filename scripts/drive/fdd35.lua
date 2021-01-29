@@ -19,7 +19,7 @@ drivespecs = {
 		-- Spin-up time in milliseconds
 		spinup				= 1000,
 		-- Number of physical tracks
-		tracks				= 84,
+		tracks				= 81,
 		-- Number of tracks per inch
 		tpi					= 135,
 		-- Number of physical heads
@@ -34,7 +34,7 @@ drivespecs = {
 		-- Spin-up time in milliseconds
 		spinup				= 1000,
 		-- Number of physical tracks
-		tracks				= 84,
+		tracks				= 81,
 		-- Number of tracks per inch
 		tpi					= 135,
 		-- Number of physical heads

@@ -2,7 +2,7 @@
 #######################
 # DiscFerret Disc Drive Specification File
 #
-# PC 3.5in Drives A and B, twisted cable or CBL-01A cable kit
+# 8-inch Drives 0, 1, 2, 3, with VFO type interface
 #######################
 ]]
 
