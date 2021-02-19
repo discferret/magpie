@@ -180,30 +180,30 @@ void do_scrub(DISCFERRET_DEVICE_HANDLE *dh, CDriveScript *drivescript, CDriveInf
 {
 	DISCFERRET_ERROR e;
 
-	const unsigned int CYLINDERS = driveinfo->tracks();
+	const int CYLINDERS = driveinfo->tracks();
 
 	int step = (CYLINDERS < 16) ? 2 : (CYLINDERS / 8);
 	for (unsigned int pass = 0; pass < passes; pass++) {
 		printf("Cleaning drive heads -- pass %d of %d...\n", pass+1, passes);
 
 		int a;
-		for (unsigned int cyl=0; cyl < CYLINDERS; cyl += step) {
+		for (int cyl=0; cyl < CYLINDERS; cyl += step) {
 			a = (cyl + (step - 1));
 			cout << a << " ";
 			cout.flush();
-			if (cyl > CYLINDERS) {
+			if (a > CYLINDERS) {
 				discferret_seek_absolute(dh, CYLINDERS-1);
 			} else {
-				discferret_seek_absolute(dh, cyl);
+				discferret_seek_absolute(dh, a);
 			}
 			usleep(100000);		// 100ms delay
 
 			a = cyl;
 			cout << a << " ";
-			if (cyl > CYLINDERS) {
+			if (a > CYLINDERS) {
 				discferret_seek_absolute(dh, CYLINDERS-1);
 			} else {
-				discferret_seek_absolute(dh, cyl);
+				discferret_seek_absolute(dh, a);
 			}
 			usleep(100000);		// 100ms delay
 		}
